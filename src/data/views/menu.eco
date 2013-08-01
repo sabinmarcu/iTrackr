@@ -1,0 +1,8 @@
+<nav id="itmenuwindow">
+	<li id="scroll-average"><span></span>% Average Scroll</li>
+	<li id="click-heat">Click Heatmap</li>
+	<li id="move-heat">Move Heatmap</li>
+	<li id="hover-heat">Hover Heatmap</li>
+	<li id="combined-heat">Combined Heatmap</li>
+	<li id="remove-heat">Remove Heatmap</li>
+</nav>

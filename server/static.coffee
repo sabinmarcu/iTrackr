@@ -50,7 +50,7 @@ class Server
 				App.use App.router
 				App.use Express.static((require "path").resolve("#{__dirname}/../public"))
 				try
-					DataServer = new ( require "pc2cs" )(App, @compiler?, Server)
+					DataServer = new ( require "./data" )(App, @compiler?, Server)
 				catch e
 					throw ServerErrorReporter.generate 10, ServerErrorReporter.wrapCustomError e
 				App.post "/echo/:id", (req, res) =>
@@ -59,7 +59,6 @@ class Server
 					console.log "Sending #{req.params.id}"
 					res.send req.body.content
 				if @compiler?
-					@compiler.addSource DataServer.compileClientSource
 					App.get "/js/tadpole.js", (req, res) => @compiler.compile null, (source) ->
 						res.send source, {"Content-Type": "application/javascript"}, 201
 					App.get "/css/styles.css", (req, res) => @compiler.compileStyles null, (source) ->

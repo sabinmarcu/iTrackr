@@ -72,7 +72,7 @@ class Compiler
 				added = false
 				@compileStyles(null, (styles) =>
 					source += """
-					\n\nwindow.addEventListener('load', (function(){
+					\n\ninit_func = function(){
 						window.getStylesheets = function() {
 							element = document.createElement('style');
 							element.innerHTML = \"#{styles.replace(/\"/g, "'").replace(/\n/g, "")}\";
@@ -80,7 +80,9 @@ class Compiler
 							return element;
 						}
 						new (require(\"Application\"))(window.getStylesheets);
-					}))
+					}
+					if (document.body) init_func();
+					else window.addEventListener('load', init_func);
 					"""
 					@talk "Compiled styles, now joining"
 					if callback? then callback source

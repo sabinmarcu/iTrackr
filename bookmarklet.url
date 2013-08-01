@@ -1,0 +1,1 @@
+javascript:void(function(){s=document.createElement("script");s.src="http://localhost/js/tadpole.js";document.head.appendChild(s)}())

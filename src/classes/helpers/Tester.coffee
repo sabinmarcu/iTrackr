@@ -14,7 +14,7 @@ TESTS =
 	"localstorage": -> chrome?.storage? or window.localDBStorage? # Only two things to check here : normal API and Chrome local DBStorage
 
 	"chrome.storage": -> chrome? and chrome.storage?
-	"webkitNotifications": -> webkitNotifications?
+	"webkitiTNotifications": -> webkitiTNotifications?
 	"mac": -> (navigator.userAgent.indexOf "Macintosh") >= 0
 	"requestAnimationFrame": -> 
 		# Checking whether the base rAF exists

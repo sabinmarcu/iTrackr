@@ -4,10 +4,10 @@ class Application extends IS.Object
 		do @firstTimeInclude
 		do @loadLibs
 		do @fixStylesheets
-		window.Loading = new ( DepMan.helper "Loading" )()
-		do @continue-load
+		window.iTTransfer = new (DepMan.helper "DataTransfer")(@continue-load)
 
 	continue-load: ~>
+		DepMan.helper "Modals"
 		do @loadApplication
 
 	baseSetup: ->
@@ -53,7 +53,14 @@ class Application extends IS.Object
 		fwstyles.html (fwstyles.html().replace /\<\<INSERT FONTAWESOME WOFF HERE\>\>/g, DepMan.font "woff/fontawesome-webfont")
 		document.head.appendChild styles
 	loadApplication: ~>
-		[ window.Notification, window.Toast ] = DepMan.helper "Notification"
+		[ window.iTNotification, window.iTToast ] = DepMan.helper "Notification"
+		window.iTLock = new (DepMan.helper "Lock")
+		window.iTStateMachine = new (DepMan.helper "StateMachine") 
+		@hook-keyboard!
+
+	hook-keyboard: ~>
+		key = if Tester.mac then "cmd" else "ctrl"
+		jwerty.key "#{key}+shift+alt+u", iTLock.unlock
 
 module.exports = Application
 

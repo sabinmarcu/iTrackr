@@ -197,6 +197,7 @@
     var prototype = extend$((import$(Application, superclass).displayName = 'Application', Application), superclass).prototype, constructor = Application;
     function Application(){
       var this$ = this instanceof ctor$ ? this : new ctor$;
+      this$.hookKeyboard = bind$(this$, 'hookKeyboard', prototype);
       this$.loadApplication = bind$(this$, 'loadApplication', prototype);
       this$.fixStylesheets = bind$(this$, 'fixStylesheets', prototype);
       this$.firstTimeInclude = bind$(this$, 'firstTimeInclude', prototype);
@@ -205,11 +206,11 @@
       this$.firstTimeInclude();
       this$.loadLibs();
       this$.fixStylesheets();
-      window.Loading = new (DepMan.helper("Loading"))();
-      this$.continueLoad();
+      window.iTTransfer = new (DepMan.helper("DataTransfer"))(this$.continueLoad);
       return this$;
     } function ctor$(){} ctor$.prototype = prototype;
     prototype.continueLoad = function(){
+      DepMan.helper("Modals");
       return this.loadApplication();
     };
     prototype.baseSetup = function(){
@@ -264,11 +265,292 @@
     };
     prototype.loadApplication = function(){
       var ref$;
-      return ref$ = DepMan.helper("Notification"), window.Notification = ref$[0], window.Toast = ref$[1], ref$;
+      ref$ = DepMan.helper("Notification"), window.iTNotification = ref$[0], window.iTToast = ref$[1];
+      window.iTLock = new (DepMan.helper("Lock"));
+      window.iTStateMachine = new (DepMan.helper("StateMachine"));
+      return this.hookKeyboard();
+    };
+    prototype.hookKeyboard = function(){
+      var key;
+      key = Tester.mac ? "cmd" : "ctrl";
+      return jwerty.key(key + "+shift+alt+u", iTLock.unlock);
     };
     return Application;
   }(IS.Object));
   module.exports = Application;
+  function bind$(obj, key, target){
+    return function(){ return (target || obj)[key].apply(obj, arguments) };
+  }
+  function extend$(sub, sup){
+    function fun(){} fun.prototype = (sub.superclass = sup).prototype;
+    (sub.prototype = new fun).constructor = sub;
+    if (typeof sup.extended == 'function') sup.extended(sub);
+    return sub;
+  }
+  function import$(obj, src){
+    var own = {}.hasOwnProperty;
+    for (var key in src) if (own.call(src, key)) obj[key] = src[key];
+    return obj;
+  }
+}).call(this);
+}, "classes/controllers/Menu": function(exports, require, module) {(function(){
+  var MenuController;
+  MenuController = (function(superclass){
+    var prototype = extend$((import$(MenuController, superclass).displayName = 'MenuController', MenuController), superclass).prototype, constructor = MenuController;
+    function MenuController(){
+      var this$ = this instanceof ctor$ ? this : new ctor$;
+      this$.destroy = bind$(this$, 'destroy', prototype);
+      this$.transfer = bind$(this$, 'transfer', prototype);
+      this$.query = bind$(this$, 'query', prototype);
+      this$.initTransfers = bind$(this$, 'initTransfers', prototype);
+      this$.releaseHeatmap = bind$(this$, 'releaseHeatmap', prototype);
+      this$.log("Menu Controller Created");
+      this$.placeholder = document.createElement("div");
+      this$.placeholder.innerHTML = DepMan.render("menu");
+      document.body.appendChild(this$.placeholder);
+      $('body').addClass("itmenuactive");
+      ['click', 'hover', 'move'].map(function(it){
+        return $("#" + it + "-heat").click(function(e){
+          this$.log("Should start " + it + "-heat");
+          this$.releaseHeatmap();
+          return this$.heatmap = new (DepMan.renderer("HeatMap"))(it);
+        });
+      });
+      $('#combined-heat').click(function(it){
+        this$.releaseHeatmap();
+        return this$.heatmap = new (DepMan.renderer("HeatMapCombined"))(it);
+      });
+      $('#remove-heat').click(function(){
+        return this$.releaseHeatmap();
+      });
+      this$.scrollAverage = $('#scroll-average span');
+      DepMan.helper("EncodingUtils");
+      DepMan.helper("DataTransfer");
+      this$.grid = new (DepMan.model("grid"));
+      this$.initTransfers();
+      return this$;
+    } function ctor$(){} ctor$.prototype = prototype;
+    prototype.releaseHeatmap = function(){
+      var ref$;
+      if (this.heatmap) {
+        this.heatmap.destroy();
+        return ref$ = this.heatmap, delete this.heatmap, ref$;
+      }
+    };
+    prototype.initTransfers = function(){
+      this.interval = setInterval(this.query, 1000);
+      return iTTransfer.socket.on("receiveData", this.transfer);
+    };
+    prototype.query = function(){
+      return iTTransfer.socket.emit("requestData");
+    };
+    prototype.transfer = function(it){
+      var data, sortable, key, ref$, value;
+      if (it.data !== "404") {
+        data = Utils.decodeData(it.data);
+        if (this.heatmap) {
+          this.heatmap.sequence(data);
+        }
+        sortable = [];
+        for (key in ref$ = data.scroll) {
+          value = ref$[key];
+          key = key.split(",");
+          sortable.push([key[0], key[1], value]);
+        }
+        sortable.sort(function(a, b){
+          return b[2] - a[2];
+        });
+        return this.scrollAverage.html(parseInt(this.grid.untranslateScroll(sortable[0]).x / document.body.scrollHeight * 100));
+      }
+    };
+    prototype.destroy = function(){
+      var ref$;
+      document.body.removeChild(this.placeholder);
+      $('body').removeClass('itmenuactive');
+      this.releaseHeatmap();
+      clearInterval(this.interval);
+      iTTransfer.socket.removeAllListeners("receiveData");
+      this.grid.destroy();
+      return ref$ = this.grid, delete this.grid, ref$;
+    };
+    return MenuController;
+  }(IS.Object));
+  module.exports = MenuController;
+  function bind$(obj, key, target){
+    return function(){ return (target || obj)[key].apply(obj, arguments) };
+  }
+  function extend$(sub, sup){
+    function fun(){} fun.prototype = (sub.superclass = sup).prototype;
+    (sub.prototype = new fun).constructor = sub;
+    if (typeof sup.extended == 'function') sup.extended(sub);
+    return sub;
+  }
+  function import$(obj, src){
+    var own = {}.hasOwnProperty;
+    for (var key in src) if (own.call(src, key)) obj[key] = src[key];
+    return obj;
+  }
+}).call(this);
+}, "classes/controllers/Recorder": function(exports, require, module) {(function(){
+  var Recorder;
+  Recorder = (function(superclass){
+    var prototype = extend$((import$(Recorder, superclass).displayName = 'Recorder', Recorder), superclass).prototype, constructor = Recorder;
+    function Recorder(){
+      var this$ = this instanceof ctor$ ? this : new ctor$;
+      this$.destroy = bind$(this$, 'destroy', prototype);
+      this$.click = bind$(this$, 'click', prototype);
+      this$.scroll = bind$(this$, 'scroll', prototype);
+      this$.move = bind$(this$, 'move', prototype);
+      this$.normalize = bind$(this$, 'normalize', prototype);
+      this$.hookEvents = bind$(this$, 'hookEvents', prototype);
+      this$.log("Initializing Recorder");
+      this$.grid = new (DepMan.model("grid"));
+      this$.buffer = new (DepMan.model("buffer"));
+      this$.hookEvents();
+      return this$;
+    } function ctor$(){} ctor$.prototype = prototype;
+    prototype.hookEvents = function(){
+      window.addEventListener("mousemove", this.move);
+      window.addEventListener("touchmove", this.move);
+      window.addEventListener("scroll", this.scroll);
+      return window.addEventListener("click", this.click);
+    };
+    prototype.normalize = function(it){
+      var ref$;
+      return ((ref$ = it.touches) != null ? ref$[0] : void 8) || it;
+    };
+    prototype.move = function(it){
+      var point, group, this$ = this;
+      if (this.timer) {
+        if (this.waitCount) {
+          this.buffer.queue('hover', this.lastPos, this.waitCount);
+          clearInterval(this.timer);
+          delete this.waitCount;
+        } else {
+          clearTimeout(this.timer);
+        }
+      }
+      point = this.normalize(it);
+      group = this.grid.translatePoint({
+        x: point.clientX + window.scrollX,
+        y: point.clientY + window.scrollY
+      });
+      this.lastPos = group;
+      this.buffer.queue('move', this.lastPos);
+      return this.timer = setTimeout(function(){
+        var count;
+        this$.waitCount = 1;
+        count = function(){
+          return this$.waitCount++;
+        };
+        return this$.timer = setInterval(count, 500);
+      }, 50);
+    };
+    prototype.scroll = function(it){
+      var point, group;
+      point = this.normalize(it);
+      group = this.grid.translateScroll();
+      return this.buffer.queue('scroll', group);
+    };
+    prototype.click = function(it){
+      var point, group;
+      point = this.normalize(it);
+      group = this.grid.translatePoint({
+        x: point.clientX + window.scrollX,
+        y: point.clientY + window.scrollY
+      });
+      return this.buffer.queue('click', group);
+    };
+    prototype.destroy = function(){
+      this.log("Destroying");
+      this.grid.destroy();
+      delete this.grid;
+      this.buffer.destroy();
+      delete this.buffer;
+      window.removeEventListener("mousemove", this.move);
+      window.removeEventListener("touchmove", this.move);
+      window.removeEventListener("scroll", this.scroll);
+      return window.removeEventListener("click", this.click);
+    };
+    return Recorder;
+  }(IS.Object));
+  module.exports = Recorder;
+  function bind$(obj, key, target){
+    return function(){ return (target || obj)[key].apply(obj, arguments) };
+  }
+  function extend$(sub, sup){
+    function fun(){} fun.prototype = (sub.superclass = sup).prototype;
+    (sub.prototype = new fun).constructor = sub;
+    if (typeof sup.extended == 'function') sup.extended(sub);
+    return sub;
+  }
+  function import$(obj, src){
+    var own = {}.hasOwnProperty;
+    for (var key in src) if (own.call(src, key)) obj[key] = src[key];
+    return obj;
+  }
+}).call(this);
+}, "classes/controllers/Viewer": function(exports, require, module) {(function(){
+  var Viewer;
+  Viewer = (function(superclass){
+    var prototype = extend$((import$(Viewer, superclass).displayName = 'Viewer', Viewer), superclass).prototype, constructor = Viewer;
+    function Viewer(){
+      var this$ = this instanceof ctor$ ? this : new ctor$;
+      this$.destroy = bind$(this$, 'destroy', prototype);
+      this$.log("Viewer Created");
+      this$.menu = new (DepMan.controller("Menu"))();
+      return this$;
+    } function ctor$(){} ctor$.prototype = prototype;
+    prototype.destroy = function(){
+      var ref$;
+      this.menu.destroy();
+      return ref$ = this.menu, delete this.menu, ref$;
+    };
+    return Viewer;
+  }(IS.Object));
+  module.exports = Viewer;
+  function bind$(obj, key, target){
+    return function(){ return (target || obj)[key].apply(obj, arguments) };
+  }
+  function extend$(sub, sup){
+    function fun(){} fun.prototype = (sub.superclass = sup).prototype;
+    (sub.prototype = new fun).constructor = sub;
+    if (typeof sup.extended == 'function') sup.extended(sub);
+    return sub;
+  }
+  function import$(obj, src){
+    var own = {}.hasOwnProperty;
+    for (var key in src) if (own.call(src, key)) obj[key] = src[key];
+    return obj;
+  }
+}).call(this);
+}, "classes/helpers/DataTransfer": function(exports, require, module) {(function(){
+  var DataTransfer;
+  DataTransfer = (function(superclass){
+    var prototype = extend$((import$(DataTransfer, superclass).displayName = 'DataTransfer', DataTransfer), superclass).prototype, constructor = DataTransfer;
+    function DataTransfer(cb){
+      var script, this$ = this instanceof ctor$ ? this : new ctor$;
+      this$.send = bind$(this$, 'send', prototype);
+      script = document.createElement("script");
+      script.src = "http://localhost:80/socket.io/socket.io.js";
+      script.onload = function(){
+        this$.socket = io.connect("http://localhost:80/");
+        this$.socket.emit("begin", {
+          host: window.location.toString().substr(7)
+        });
+        return typeof cb === 'function' ? cb() : void 8;
+      };
+      this$.log(script);
+      document.body.appendChild(script);
+      return this$;
+    } function ctor$(){} ctor$.prototype = prototype;
+    prototype.send = function(it){
+      var ref$;
+      return (ref$ = this.socket) != null ? ref$.emit("sendData", it) : void 8;
+    };
+    return DataTransfer;
+  }(IS.Object));
+  module.exports = DataTransfer;
   function bind$(obj, key, target){
     return function(){ return (target || obj)[key].apply(obj, arguments) };
   }
@@ -410,6 +692,71 @@
     var own = {}.hasOwnProperty;
     for (var key in src) if (own.call(src, key)) obj[key] = src[key];
     return obj;
+  }
+}).call(this);
+}, "classes/helpers/EncodingUtils": function(exports, require, module) {(function(){
+  var Utils;
+  Utils = (function(){
+    Utils.displayName = 'Utils';
+    var prototype = Utils.prototype, constructor = Utils;
+    Utils.decodeData = function(data){
+      var pieces, i$, len$, piece;
+      pieces = data.split("|");
+      data = {};
+      for (i$ = 0, len$ = pieces.length; i$ < len$; ++i$) {
+        piece = pieces[i$];
+        if (piece.indexOf("<HOVER>") === 0) {
+          data.hover = Utils.decodePiece(piece.substr(7));
+        }
+        if (piece.indexOf("<SCROLL>") === 0) {
+          data.scroll = Utils.decodePiece(piece.substr(8));
+        }
+        if (piece.indexOf("<CLICK>") === 0) {
+          data.click = Utils.decodePiece(piece.substr(7));
+        }
+        if (piece.indexOf("<MOVE>") === 0) {
+          data.move = Utils.decodePiece(piece.substr(6));
+        }
+      }
+      return data;
+    };
+    Utils.decodePiece = function(data){
+      var pieces, i$, len$, piece, ref$, key, value;
+      if (data === "") {
+        return;
+      }
+      pieces = data.split(";");
+      data = {};
+      for (i$ = 0, len$ = pieces.length; i$ < len$; ++i$) {
+        piece = pieces[i$];
+        ref$ = piece.split(":"), key = ref$[0], value = ref$[1];
+        data[key] = parseInt(value);
+      }
+      return data;
+    };
+    Utils.encodeData = function(data){
+      return "<HOVER>" + Utils.encodePiece(data.hover) + "|<SCROLL>" + Utils.encodePiece(data.scroll) + "|<CLICK>" + Utils.encodePiece(data.click) + "|<MOVE>" + Utils.encodePiece(data.move);
+    };
+    Utils.encodePiece = function(data){
+      var obj, key, value;
+      obj = [];
+      for (key in data) {
+        value = data[key];
+        if (!!value) {
+          obj.push(key + ":" + value);
+        }
+      }
+      return obj.join(";");
+    };
+    function Utils(){}
+    return Utils;
+  }());
+  module.exports = Utils;
+  if (typeof root != 'undefined' && root !== null) {
+    root.Utils = Utils;
+  }
+  if (typeof window != 'undefined' && window !== null) {
+    window.Utils = Utils;
   }
 }).call(this);
 }, "classes/helpers/Language": function(exports, require, module) {(function(){
@@ -571,39 +918,246 @@
     return obj;
   }
 }).call(this);
+}, "classes/helpers/Lock": function(exports, require, module) {(function(){
+  var Lock;
+  Lock = (function(superclass){
+    var prototype = extend$((import$(Lock, superclass).displayName = 'Lock', Lock), superclass).prototype, constructor = Lock;
+    function Lock(isLocked){
+      var this$ = this instanceof ctor$ ? this : new ctor$;
+      this$.isLocked = isLocked != null ? isLocked : true;
+      this$.lock = bind$(this$, 'lock', prototype);
+      this$.unlock = bind$(this$, 'unlock', prototype);
+      return this$;
+    } function ctor$(){} ctor$.prototype = prototype;
+    prototype.unlock = function(){
+      var id, this$ = this;
+      if (this.isLocked) {
+        Modal.show({
+          title: "Unlock the application.",
+          content: DepMan.render("unlock")
+        });
+        $('#unlockpassword').change(Modal.hide);
+        $('#unlockbutton').click(Modal.hide);
+        $('#unlockpassword').focus();
+        return id = Modal.subscribe("prehide", function(){
+          var val, div;
+          val = $('#unlockpassword').val();
+          if (val === 'pulamea') {
+            this$.isLocked = false;
+          } else {
+            alert("Wrong answer!");
+          }
+          Modal.unsubscribe(id);
+          div = document.createElement("div");
+          div.id = "unlockedplaceholder";
+          div.innerHTML = "<i class='icon-eye-open'></i>";
+          return document.body.appendChild(div);
+        });
+      } else {
+        return this.lock();
+      }
+    };
+    prototype.lock = function(){
+      var div;
+      this.isLocked = true;
+      div = $('#unlockedplaceholder')[0];
+      if (div) {
+        return div.remove();
+      }
+    };
+    return Lock;
+  }(IS.Object));
+  module.exports = Lock;
+  function bind$(obj, key, target){
+    return function(){ return (target || obj)[key].apply(obj, arguments) };
+  }
+  function extend$(sub, sup){
+    function fun(){} fun.prototype = (sub.superclass = sup).prototype;
+    (sub.prototype = new fun).constructor = sub;
+    if (typeof sup.extended == 'function') sup.extended(sub);
+    return sub;
+  }
+  function import$(obj, src){
+    var own = {}.hasOwnProperty;
+    for (var key in src) if (own.call(src, key)) obj[key] = src[key];
+    return obj;
+  }
+}).call(this);
+}, "classes/helpers/Modals": function(exports, require, module) {(function(){
+  var STATES, States, ModalController, Controller;
+  STATES = ['closed', 'normal', 'fullscreen'];
+  States = new IS.Enum(STATES);
+  ModalController = (function(superclass){
+    var prototype = extend$((import$(ModalController, superclass).displayName = 'ModalController', ModalController), superclass).prototype, constructor = ModalController;
+    function ModalController(){
+      var this$ = this instanceof ctor$ ? this : new ctor$;
+      this$.safeApply = bind$(this$, 'safeApply', prototype);
+      this$.set = bind$(this$, 'set', prototype);
+      this$.hide = bind$(this$, 'hide', prototype);
+      this$.show = bind$(this$, 'show', prototype);
+      this$.toggle = bind$(this$, 'toggle', prototype);
+      this$.hookKeyboard = bind$(this$, 'hookKeyboard', prototype);
+      this$.setAttributes = bind$(this$, 'setAttributes', prototype);
+      this$.renderModal = bind$(this$, 'renderModal', prototype);
+      this$.grabControls = bind$(this$, 'grabControls', prototype);
+      this$.state = States.closed;
+      this$.setAttributes();
+      this$.renderModal();
+      this$.hookKeyboard();
+      this$.grabControls();
+      return this$;
+    } function ctor$(){} ctor$.prototype = prototype;
+    prototype.grabControls = function(){
+      var this$ = this;
+      this.titlezone = $('#modal-title-area');
+      this.contentzone = $('#modal-content-area');
+      this.containerzone = $('#modal-window')[0];
+      $('#modal-close-button').click(function(){
+        return this$.hide();
+      });
+      return $('#modal-fullscreen-botton').click(function(){
+        this$.state = States.fullscreen;
+        return this$.safeApply();
+      });
+    };
+    prototype.renderModal = function(){
+      var div;
+      div = document.createElement('div');
+      div.innerHTML = DepMan.render("modal", {
+        States: States,
+        STATES: STATES
+      });
+      div.setAttribute('rel', "Modal Container");
+      div.setAttribute('id', 'modal-container');
+      return document.body.appendChild(div);
+    };
+    prototype.setAttributes = function(){
+      this.title = "Modal Window";
+      this.content = "Test Content";
+      return this.queue = {};
+    };
+    prototype.hookKeyboard = function(){
+      var this$ = this;
+      return jwerty.key("esc", function(){
+        return this$.hide();
+      });
+    };
+    prototype.toggle = function(){
+      if (this.state === States.normal) {
+        this.state = States.fullscreen;
+      } else {
+        this.state = States.normal;
+      }
+      return this.safeApply();
+    };
+    prototype.show = function(data, timeout){
+      data == null && (data = {
+        title: "No Title",
+        content: "No Content"
+      });
+      this.publish("preshow");
+      this.title = data.title || null;
+      this.content = data.content || null;
+      if (window.innerWidth <= 320) {
+        this.state = States.fullscreen;
+      } else {
+        this.state = States.normal;
+      }
+      if (timeout) {
+        setTimeout(this.hide, timeout);
+      }
+      $('body').addClass('modal-active');
+      this.publish("show");
+      return this.safeApply();
+    };
+    prototype.hide = function(){
+      this.publish("prehide");
+      this.state = States.closed;
+      $('body').removeClass('modal-active');
+      return this.safeApply().publish("hide");
+    };
+    prototype.set = function(key, value){
+      if (key == 'title' || key == 'content') {
+        this[key] = value;
+        return this.safeApply();
+      }
+    };
+    prototype.safeApply = function(){
+      this.titlezone.html(this.title);
+      this.contentzone.html(this.content);
+      this.containerzone.className = STATES[this.state];
+      return this;
+    };
+    ModalController.include(IS.Modules.Observer);
+    return ModalController;
+  }(IS.Object));
+  Controller = new ModalController();
+  window.Modal = {
+    set: function(){
+      return Controller.edit.apply(Controller, arguments);
+    },
+    show: function(){
+      return Controller.show.apply(Controller, arguments);
+    },
+    hide: function(){
+      return Controller.hide.apply(Controller, arguments);
+    },
+    subscribe: function(){
+      return Controller.subscribe.apply(Controller, arguments);
+    },
+    unsubscribe: function(){
+      return Controller.unsubscribe.apply(Controller, arguments);
+    }
+  };
+  module.exports = Controller;
+  function bind$(obj, key, target){
+    return function(){ return (target || obj)[key].apply(obj, arguments) };
+  }
+  function extend$(sub, sup){
+    function fun(){} fun.prototype = (sub.superclass = sup).prototype;
+    (sub.prototype = new fun).constructor = sub;
+    if (typeof sup.extended == 'function') sup.extended(sub);
+    return sub;
+  }
+  function import$(obj, src){
+    var own = {}.hasOwnProperty;
+    for (var key in src) if (own.call(src, key)) obj[key] = src[key];
+    return obj;
+  }
+}).call(this);
 }, "classes/helpers/Notification": function(exports, require, module) {(function(){
-  var DRIVERS, Drivers, NotificationHelper, Helper, Toast, slice$ = [].slice, join$ = [].join;
+  var DRIVERS, Drivers, iTNotificationHelper, Helper, iTToast, slice$ = [].slice, join$ = [].join;
   DRIVERS = ['webkit', 'normal'];
   Drivers = new IS.Enum(DRIVERS);
-  NotificationHelper = (function(superclass){
-    var prototype = extend$((import$(NotificationHelper, superclass).displayName = 'NotificationHelper', NotificationHelper), superclass).prototype, constructor = NotificationHelper;
-    function NotificationHelper(){
+  iTNotificationHelper = (function(superclass){
+    var prototype = extend$((import$(iTNotificationHelper, superclass).displayName = 'iTNotificationHelper', iTNotificationHelper), superclass).prototype, constructor = iTNotificationHelper;
+    function iTNotificationHelper(){
       var handler, this$ = this instanceof ctor$ ? this : new ctor$;
       this$.toastNormal = bind$(this$, 'toastNormal', prototype);
       this$.toastWebkit = bind$(this$, 'toastWebkit', prototype);
       this$.toast = bind$(this$, 'toast', prototype);
       this$.timeout == null && (this$.timeout = 5000);
       this$.driver = DRIVERS.normal;
-      if (Tester['webkitNotifications']) {
+      if (Tester['webkitiTNotifications']) {
         if (!Tester['chrome.storage']) {
           handler = function(){
-            webkitNotifications.requestPermission();
+            webkitiTNotifications.requestPermission();
             return window.removeEventListener("click");
           };
           window.addEventListener("click", handler);
         }
         this$.driver = DRIVERS.webkit;
       }
-      this$.echo("Notification Helper Online, with driver : ", this$.drive, " and timeout : ", this$.timeout);
+      this$.echo("iTNotification Helper Online, with driver : ", this$.drive, " and timeout : ", this$.timeout);
       return this$;
     } function ctor$(){} ctor$.prototype = prototype;
     prototype.toast = function(title){
       var body;
-      title == null && (title = "Notification");
+      title == null && (title = "iTNotification");
       body = slice$.call(arguments, 1);
       switch (this.driver) {
       case Drivers.webkit:
-        if (webkitNotifications.checkPermission() === 0) {
+        if (webkitiTNotifications.checkPermission() === 0) {
           return this.toastWebkit(title, body);
         } else {
           return this.toastNormal(title, body);
@@ -620,7 +1174,7 @@
         item = body[i$];
         b += "\n" + item;
       }
-      notif = webkitNotifications.createNotification('icon.ico', title, b);
+      notif = webkitiTNotifications.createiTNotification('icon.ico', title, b);
       notif.ondisplay = function(ev){
         return setTimeout(function(){
           return ev.currentTarget.cancel();
@@ -645,11 +1199,100 @@
         return alert(b);
       }
     };
-    return NotificationHelper;
+    return iTNotificationHelper;
   }(IS.Object));
-  Helper = new NotificationHelper();
-  Toast = Helper.toast;
-  module.exports = [Helper, Toast];
+  Helper = new iTNotificationHelper();
+  iTToast = Helper.toast;
+  module.exports = [Helper, iTToast];
+  function bind$(obj, key, target){
+    return function(){ return (target || obj)[key].apply(obj, arguments) };
+  }
+  function extend$(sub, sup){
+    function fun(){} fun.prototype = (sub.superclass = sup).prototype;
+    (sub.prototype = new fun).constructor = sub;
+    if (typeof sup.extended == 'function') sup.extended(sub);
+    return sub;
+  }
+  function import$(obj, src){
+    var own = {}.hasOwnProperty;
+    for (var key in src) if (own.call(src, key)) obj[key] = src[key];
+    return obj;
+  }
+}).call(this);
+}, "classes/helpers/StateMachine": function(exports, require, module) {(function(){
+  var STATES, States, StateMachine;
+  STATES = ['view', 'record'];
+  States = new IS.Enum(STATES);
+  StateMachine = (function(superclass){
+    var prototype = extend$((import$(StateMachine, superclass).displayName = 'StateMachine', StateMachine), superclass).prototype, constructor = StateMachine;
+    function StateMachine(){
+      var key, this$ = this instanceof ctor$ ? this : new ctor$;
+      this$.deactivateStaterecord = bind$(this$, 'deactivateStaterecord', prototype);
+      this$.activateStaterecord = bind$(this$, 'activateStaterecord', prototype);
+      this$.deactivateStateview = bind$(this$, 'deactivateStateview', prototype);
+      this$.activateStateview = bind$(this$, 'activateStateview', prototype);
+      this$.toggleState = bind$(this$, 'toggleState', prototype);
+      this$.otherState = bind$(this$, 'otherState', prototype);
+      this$.deactivateState = bind$(this$, 'deactivateState', prototype);
+      this$.activateState = bind$(this$, 'activateState', prototype);
+      this$.activateState(States.view);
+      key = Tester.mac ? "cmd" : "ctrl";
+      jwerty.key(key + "+shift+alt+tab", this$.toggleState);
+      return this$;
+    } function ctor$(){} ctor$.prototype = prototype;
+    prototype.activateState = function(state){
+      if ((STATES[state] != null) !== false) {
+        this["activateState" + STATES[state]]();
+        return this.state = state;
+      }
+    };
+    prototype.deactivateState = function(state){
+      state == null && (state = this.state);
+      if ((STATES[state] != null) !== false) {
+        this["deactivateState" + STATES[state]]();
+        return this.state = null;
+      }
+    };
+    prototype.otherState = function(state){
+      switch (state) {
+      case States.view:
+        return States.record;
+      default:
+        return States.view;
+      }
+    };
+    prototype.toggleState = function(){
+      var state;
+      if (!iTLock.isLocked) {
+        state = this.state;
+        this.deactivateState();
+        return this.activateState(this.otherState(state));
+      }
+    };
+    prototype.activateStateview = function(){
+      this.log("Activating View State");
+      return window.iTViewer = new (DepMan.controller("Viewer"));
+    };
+    prototype.deactivateStateview = function(){
+      var ref$;
+      this.log("Deactivating View State");
+      window.iTViewer.destroy();
+      return ref$ = window.iTViewer, delete window.iTViewer, ref$;
+    };
+    prototype.activateStaterecord = function(){
+      this.log("Activating Record State");
+      return window.iTRecorder = new (DepMan.controller("Recorder"));
+    };
+    prototype.deactivateStaterecord = function(){
+      var ref$;
+      this.log("Deactivating Record State");
+      window.iTRecorder.destroy();
+      return ref$ = window.iTRecorder, delete window.iTRecorder, ref$;
+    };
+    StateMachine.include(IS.Modules.Observer);
+    return StateMachine;
+  }(IS.Object));
+  module.exports = StateMachine;
   function bind$(obj, key, target){
     return function(){ return (target || obj)[key].apply(obj, arguments) };
   }
@@ -809,8 +1452,8 @@
     "chrome.storage": function() {
       return (typeof chrome !== "undefined" && chrome !== null) && (chrome.storage != null);
     },
-    "webkitNotifications": function() {
-      return typeof webkitNotifications !== "undefined" && webkitNotifications !== null;
+    "webkitiTNotifications": function() {
+      return typeof webkitiTNotifications !== "undefined" && webkitiTNotifications !== null;
     },
     "mac": function() {
       return (navigator.userAgent.indexOf("Macintosh")) >= 0;
@@ -13172,6 +13815,147 @@ var require=function(n,r,t){function e(t,i){if(!r[t]){if(!n[t]){var o=typeof req
 prelude = root.prelude = require( "prelude-ls" );
 return prelude;
 })(window)
+}, "classes/models/buffer": function(exports, require, module) {(function(){
+  var Buffer;
+  Buffer = (function(superclass){
+    var prototype = extend$((import$(Buffer, superclass).displayName = 'Buffer', Buffer), superclass).prototype, constructor = Buffer;
+    function Buffer(){
+      var this$ = this instanceof ctor$ ? this : new ctor$;
+      this$.destroy = bind$(this$, 'destroy', prototype);
+      this$.reset = bind$(this$, 'reset', prototype);
+      this$.flush = bind$(this$, 'flush', prototype);
+      this$.queue = bind$(this$, 'queue', prototype);
+      DepMan.helper("DataTransfer");
+      DepMan.helper("EncodingUtils");
+      this$.reset();
+      this$.timer = setInterval(this$.flush, 3000);
+      return this$;
+    } function ctor$(){} ctor$.prototype = prototype;
+    prototype.queue = function(what, data, step){
+      var ref$;
+      step == null && (step = 1);
+      (ref$ = this.buffers[what])[data] == null && (ref$[data] = 0);
+      return this.buffers[what][data] += step;
+    };
+    prototype.flush = function(){
+      var data;
+      data = Utils.encodeData({
+        move: this.buffers.move,
+        hover: this.buffers.hover,
+        scroll: this.buffers.scroll,
+        click: this.buffers.click
+      });
+      this.log(data);
+      iTTransfer.send(data);
+      return this.reset();
+    };
+    prototype.reset = function(){
+      return this.buffers = {
+        move: {},
+        scroll: {},
+        click: {},
+        hover: {}
+      };
+    };
+    prototype.destroy = function(){
+      this.flush();
+      return clearInterval(this.timer);
+    };
+    return Buffer;
+  }(IS.Object));
+  module.exports = Buffer;
+  function bind$(obj, key, target){
+    return function(){ return (target || obj)[key].apply(obj, arguments) };
+  }
+  function extend$(sub, sup){
+    function fun(){} fun.prototype = (sub.superclass = sup).prototype;
+    (sub.prototype = new fun).constructor = sub;
+    if (typeof sup.extended == 'function') sup.extended(sub);
+    return sub;
+  }
+  function import$(obj, src){
+    var own = {}.hasOwnProperty;
+    for (var key in src) if (own.call(src, key)) obj[key] = src[key];
+    return obj;
+  }
+}).call(this);
+}, "classes/models/grid": function(exports, require, module) {(function(){
+  var Grid;
+  Grid = (function(superclass){
+    var prototype = extend$((import$(Grid, superclass).displayName = 'Grid', Grid), superclass).prototype, constructor = Grid;
+    prototype.translatePoint = function(it){
+      return [this.formPoint(it.x - window.innerWidth / 2), this.formPoint(it.y)];
+    };
+    prototype.translateScroll = function(){
+      return [this.formScroll(window.scrollY), this.formScroll(window.scrollX)];
+    };
+    prototype.formPoint = function(it){
+      return this.form(it, 50);
+    };
+    prototype.formScroll = function(it){
+      return this.form(it, 150);
+    };
+    prototype.form = function(obj, margin){
+      return parseInt(obj / margin) + (obj % margin !== 0);
+    };
+    prototype.deform = function(obj, margin){
+      return {
+        x: obj.x * margin + window.innerWidth / 2,
+        y: obj.y * margin
+      };
+    };
+    prototype.deformPoint = function(it){
+      return this.deform(it, 50);
+    };
+    prototype.deformScroll = function(it){
+      return this.deform(it, 150);
+    };
+    prototype.untranslatePoint = function(it){
+      it = it.split(",");
+      return this.deformPoint({
+        x: it[0],
+        y: it[1]
+      });
+    };
+    prototype.untranslateScroll = function(it){
+      return this.deformScroll({
+        x: it[0],
+        y: it[1]
+      });
+    };
+    prototype.destroy = function(){};
+    function Grid(){
+      this.destroy = bind$(this, 'destroy', prototype);
+      this.untranslateScroll = bind$(this, 'untranslateScroll', prototype);
+      this.untranslatePoint = bind$(this, 'untranslatePoint', prototype);
+      this.deformScroll = bind$(this, 'deformScroll', prototype);
+      this.deformPoint = bind$(this, 'deformPoint', prototype);
+      this.deform = bind$(this, 'deform', prototype);
+      this.form = bind$(this, 'form', prototype);
+      this.formScroll = bind$(this, 'formScroll', prototype);
+      this.formPoint = bind$(this, 'formPoint', prototype);
+      this.translateScroll = bind$(this, 'translateScroll', prototype);
+      this.translatePoint = bind$(this, 'translatePoint', prototype);
+      Grid.superclass.apply(this, arguments);
+    }
+    return Grid;
+  }(IS.Object));
+  module.exports = Grid;
+  function bind$(obj, key, target){
+    return function(){ return (target || obj)[key].apply(obj, arguments) };
+  }
+  function extend$(sub, sup){
+    function fun(){} fun.prototype = (sub.superclass = sup).prototype;
+    (sub.prototype = new fun).constructor = sub;
+    if (typeof sup.extended == 'function') sup.extended(sub);
+    return sub;
+  }
+  function import$(obj, src){
+    var own = {}.hasOwnProperty;
+    for (var key in src) if (own.call(src, key)) obj[key] = src[key];
+    return obj;
+  }
+}).call(this);
 }, "classes/renderers/Base": function(exports, require, module) {(function(){
   var BaseFrameBuffer;
   Object.getPrototypeOf(document.createElement("canvas").getContext("2d")).fillRectR = function(x, y, w, h, r){
@@ -13213,13 +13997,6 @@ return prelude;
     function BaseFrameBuffer(buffer){
       var this$ = this instanceof ctor$ ? this : new ctor$;
       this$.buffer = buffer;
-      this$.endResize = bind$(this$, 'endResize', prototype);
-      this$.startResize = bind$(this$, 'startResize', prototype);
-      this$.endDraw = bind$(this$, 'endDraw', prototype);
-      this$.startDraw = bind$(this$, 'startDraw', prototype);
-      this$.scan = bind$(this$, 'scan', prototype);
-      this$.getShadowColor = bind$(this$, 'getShadowColor', prototype);
-      this$.drawShadow = bind$(this$, 'drawShadow', prototype);
       this$.reset = bind$(this$, 'reset', prototype);
       if (!this$.buffer) {
         this$.buffer = document.createElement("canvas");
@@ -13232,49 +14009,159 @@ return prelude;
     prototype.reset = function(){
       return this.buffer.width = this.buffer.width;
     };
-    prototype.drawShadow = function(){
-      this.sbuffer.width = this.sbuffer.width;
-      this.getShadowColor();
-      this.scontext.fillStyle = this.scolor;
-      return this.scontext.fillRect(0, 0, this.sbuffer.width, this.sbuffer.height);
-    };
-    prototype.getShadowColor = function(){
-      var r, g, b, ref$, rest;
-      r = 0;
-      g = 0;
-      b = (((ref$ = this.node) != null ? ref$.$index : void 8) + 1) % 255;
-      rest = r / 255;
-      if (rest) {
-        g = rest % 255;
-        rest = rest / 255;
-        if (rest) {
-          r = rest % 255;
-        }
-      }
-      return this.scolor = "rgb(" + r + ", " + g + ", " + b + ")";
-    };
-    prototype.scan = function(it){
-      var rgb;
-      rgb = this.context.getImageData(it.x, it.y, 1, 1).data;
-      return rgb[0] * 255 * 255 + rgb[1] * 255 + rgb[2];
-    };
-    prototype.startDraw = function(){
-      return this.drawing = true;
-    };
-    prototype.endDraw = function(){
-      var ref$;
-      return ref$ = this.drawing, delete this.drawing, ref$;
-    };
-    prototype.startResize = function(){
-      return this.resizing = true;
-    };
-    prototype.endResize = function(){
-      var ref$;
-      return ref$ = this.resizing, delete this.resizing, ref$;
-    };
     return BaseFrameBuffer;
   }(IS.Object));
   module.exports = BaseFrameBuffer;
+  function bind$(obj, key, target){
+    return function(){ return (target || obj)[key].apply(obj, arguments) };
+  }
+  function extend$(sub, sup){
+    function fun(){} fun.prototype = (sub.superclass = sup).prototype;
+    (sub.prototype = new fun).constructor = sub;
+    if (typeof sup.extended == 'function') sup.extended(sub);
+    return sub;
+  }
+  function import$(obj, src){
+    var own = {}.hasOwnProperty;
+    for (var key in src) if (own.call(src, key)) obj[key] = src[key];
+    return obj;
+  }
+}).call(this);
+}, "classes/renderers/HeatMap": function(exports, require, module) {(function(){
+  var HeatMapRenderer;
+  HeatMapRenderer = (function(superclass){
+    var prototype = extend$((import$(HeatMapRenderer, superclass).displayName = 'HeatMapRenderer', HeatMapRenderer), superclass).prototype, constructor = HeatMapRenderer;
+    function HeatMapRenderer(prop){
+      var this$ = this instanceof ctor$ ? this : new ctor$;
+      this$.prop = prop;
+      this$.sequence = bind$(this$, 'sequence', prototype);
+      this$.resize = bind$(this$, 'resize', prototype);
+      this$.destroy = bind$(this$, 'destroy', prototype);
+      HeatMapRenderer.superclass.call(this$);
+      this$.log("Heatmap Created");
+      this$.buffer.id = "heatmap-canvas";
+      this$.grid = new (DepMan.model("grid"));
+      this$.resize();
+      window.addEventListener("resize", this$.resize);
+      document.body.appendChild(this$.buffer);
+      return this$;
+    } function ctor$(){} ctor$.prototype = prototype;
+    prototype.destroy = function(){
+      var ref$;
+      window.removeEventListener("resize", this.resize);
+      this.grid.destroy();
+      delete this.grid;
+      this.log(this.buffer);
+      document.body.removeChild(this.buffer);
+      return ref$ = this.buffer, delete this.buffer, ref$;
+    };
+    prototype.resize = function(){
+      this.buffer.width = document.body.scrollWidth;
+      return this.buffer.height = document.body.scrollHeight;
+    };
+    prototype.sequence = function(it){
+      var sortable, i$, len$, set, index, alphaDelta, results$ = [];
+      this.reset();
+      sortable = this.getSets(it);
+      this.color = {
+        r: 256,
+        g: 0,
+        b: 0
+      };
+      for (i$ = 0, len$ = sortable.length; i$ < len$; ++i$) {
+        set = sortable[i$];
+        index = this.grid.untranslatePoint(set[0]);
+        alphaDelta = this.color.r / 256 + this.color.g / 256 + this.color.b / 256;
+        this.context.fillStyle = "rgba(" + this.color.r + ", " + this.color.g + ", " + this.color.b + ", " + alphaDelta + ")";
+        this.context.fillRect(index.x, index.y, 50, 50);
+        if (this.color.r) {
+          this.color.r -= 30;
+          if (this.color.r <= 0) {
+            this.color.r = 0;
+            results$.push(this.color.g = 256);
+          }
+        } else {
+          if (this.color.g) {
+            this.color.g -= 30;
+            if (this.color.g <= 0) {
+              this.color.g = 0;
+              results$.push(this.color.b = 256);
+            }
+          } else {
+            results$.push(this.color.b -= 30);
+          }
+        }
+      }
+      return results$;
+    };
+    prototype.getSets = function(it){
+      var sortable, key, ref$, value;
+      sortable = [];
+      for (key in ref$ = it[this.prop]) {
+        value = ref$[key];
+        sortable.push([key, value]);
+      }
+      sortable.sort(function(a, b){
+        return b[1] - a[1];
+      });
+      return sortable;
+    };
+    return HeatMapRenderer;
+  }(DepMan.renderer("Base")));
+  module.exports = HeatMapRenderer;
+  function bind$(obj, key, target){
+    return function(){ return (target || obj)[key].apply(obj, arguments) };
+  }
+  function extend$(sub, sup){
+    function fun(){} fun.prototype = (sub.superclass = sup).prototype;
+    (sub.prototype = new fun).constructor = sub;
+    if (typeof sup.extended == 'function') sup.extended(sub);
+    return sub;
+  }
+  function import$(obj, src){
+    var own = {}.hasOwnProperty;
+    for (var key in src) if (own.call(src, key)) obj[key] = src[key];
+    return obj;
+  }
+}).call(this);
+}, "classes/renderers/HeatMapCombined": function(exports, require, module) {(function(){
+  var HeatMapCombined;
+  HeatMapCombined = (function(superclass){
+    var prototype = extend$((import$(HeatMapCombined, superclass).displayName = 'HeatMapCombined', HeatMapCombined), superclass).prototype, constructor = HeatMapCombined;
+    function HeatMapCombined(){
+      var this$ = this instanceof ctor$ ? this : new ctor$;
+      this$.passthrough = bind$(this$, 'passthrough', prototype);
+      this$.join = bind$(this$, 'join', prototype);
+      this$.getSets = bind$(this$, 'getSets', prototype);
+      HeatMapCombined.superclass.call(this$, "joined");
+      return this$;
+    } function ctor$(){} ctor$.prototype = prototype;
+    prototype.getSets = function(it){
+      var sets;
+      sets = this.join(it.move, it.click);
+      sets = this.join(sets, it.hover);
+      superclass.prototype.getSets.call(this, {
+        joined: sets
+      });
+      sets = this.passthrough(sets, it.scroll);
+      return sets;
+    };
+    prototype.join = function(a, b){
+      var key, value;
+      for (key in a) {
+        value = a[key];
+        if (b[key]) {
+          b[key] += a[key];
+        } else {
+          b[key] = a[key];
+        }
+      }
+      return b;
+    };
+    prototype.passthrough = function(sets, scrolls){};
+    return HeatMapCombined;
+  }(DepMan.renderer("HeatMap")));
+  module.exports = HeatMapCombined;
   function bind$(obj, key, target){
     return function(){ return (target || obj)[key].apply(obj, arguments) };
   }
@@ -13357,7 +14244,7 @@ return window.otherImports['roboto400'] = module.exports = item; }, "data/langua
 var item = JSON.parse("{\n}", function(key, value) { var v; try { v = eval(value) } catch(e) { v = value } return v;}); 
 return window.JSONImport['en-US'] = module.exports = item;}, "data/languages/ro-RO": function(exports, require, module) {if (!window.JSONImport) window.JSONImport = {}; 
 var item = JSON.parse("{\"English\":\"Engleză\",\"Romanian\":\"Română\",\"Document List\":\"Lista de Documente\",\"Connection Manager\":\"Manager de Conexiuni\",\"Your Client ID\":\"ID-ul Tău de Client\",\"Client ID to connect to\":\"ID-ul de Client la care să te conectezi\",\"General Application Settings\":\"Setări Generale ale Aplicației\",\"Activate the landing page\":\"Activează pagina de sosire\",\"Activate the help page\":\"Activează pagina de ajutor\",\"Select your language of choice\":\"Alege limba\",\"Experimental Features\":\"Lucruri Experimentale\",\"Activate a Toast\":\"Activează un mesaj\",\"Activate a Toast (Modal Override)\":\"Activează un mesaj (modal)\",\"Open a modal window\":\"Activează o fereastră modală\",\"Launch Application\":\"Lansează Aplicația\",\"Install application in Chrome\":\"Instalează aplicația în Chrome\",\"Install application in Firefox\":\"Instalează aplicația în Firefox\",\"Install application in Windows 8\":\"Instalează aplicația în Windows 8\",\"Install application in Opera New\":\"Instalează aplicația în Opera New\",\"Relation between this node and the previous.\":\"Relația dintre acest nod și cel anterior\",\"Notes associated\":\"Notițe asociate\",\"Node Text\":\"Textul Nodului\",\"The text of the node\":\"Textul Nodului\",\"Is this node checked?\":\"Este acest nod bifat?\",\"Relation with its parent\":\"Relația cu părintele său\",\"Add a new node\":\"Adaugă un nod nou\",\"Remove this node\":\"Sterge acest nod\",\"Read More\":\"Citește mai mult\",\"Reconnect\":\"Reconectează-te\",\"Open the Loading Screen\":\"Deschide ecranul de încărcare\"}", function(key, value) { var v; try { v = eval(value) } catch(e) { v = value } return v;}); 
-return window.JSONImport['ro-RO'] = module.exports = item;}, "data/stylesheets/font-awesome": function(exports, require, module) {s = document.createElement('style'); s.innerHTML = "/*!\n *  Font Awesome 3.2.1\n *  the iconic font designed for Bootstrap\n *  ------------------------------------------------------------------------------\n *  The full suite of pictographic icons, examples, and documentation can be\n *  found at http://fontawesome.io.  Stay up to date on Twitter at\n *  http://twitter.com/fontawesome.\n *\n *  License\n *  ------------------------------------------------------------------------------\n *  - The Font Awesome font is licensed under SIL OFL 1.1 -\n *    http://scripts.sil.org/OFL\n *  - Font Awesome CSS, LESS, and SASS files are licensed under MIT License -\n *    http://opensource.org/licenses/mit-license.html\n *  - Font Awesome documentation licensed under CC BY 3.0 -\n *    http://creativecommons.org/licenses/by/3.0/\n *  - Attribution is no longer required in Font Awesome 3.0, but much appreciated:\n *    \"Font Awesome by Dave Gandy - http://fontawesome.io\"\n *\n *  Author - Dave Gandy\n *  ------------------------------------------------------------------------------\n *  Email: dave@fontawesome.io\n *  Twitter: http://twitter.com/davegandy\n *  Work: Lead Product Designer @ Kyruus - http://kyruus.com\n */\n/* FONT PATH\n * -------------------------- */\n@font-face {\n  font-family: 'FontAwesome';\n  src: url('<<INSERT FONTAWESOME EOT HERE>>');\n  src: url('<<INSERT FONTAWESOME EOT HERE>>?#iefix') format('embedded-opentype'), url('<<INSERT FONTAWESOME WOFF HERE>>') format('woff'), url('<<INSERT FONTAWESOME TTF HERE>>') format('truetype');\n  font-weight: normal;\n  font-style: normal;\n}\n/* FONT AWESOME CORE\n * -------------------------- */\n[class^=\"icon-\"],\n[class*=\" icon-\"] {\n  font-family: FontAwesome;\n  font-weight: normal;\n  font-style: normal;\n  text-decoration: inherit;\n  -webkit-font-smoothing: antialiased;\n  *margin-right: .3em;\n}\n[class^=\"icon-\"]:before,\n[class*=\" icon-\"]:before {\n  text-decoration: inherit;\n  display: inline-block;\n  speak: none;\n}\n/* makes the font 33% larger relative to the icon container */\n.icon-large:before {\n  vertical-align: -10%;\n  font-size: 1.3333333333333333em;\n}\n/* makes sure icons active on rollover in links */\na [class^=\"icon-\"],\na [class*=\" icon-\"] {\n  display: inline;\n}\n/* increased font size for icon-large */\n[class^=\"icon-\"].icon-fixed-width,\n[class*=\" icon-\"].icon-fixed-width {\n  display: inline-block;\n  width: 1.1428571428571428em;\n  text-align: right;\n  padding-right: 0.2857142857142857em;\n}\n[class^=\"icon-\"].icon-fixed-width.icon-large,\n[class*=\" icon-\"].icon-fixed-width.icon-large {\n  width: 1.4285714285714286em;\n}\n.icons-ul {\n  margin-left: 2.142857142857143em;\n  list-style-type: none;\n}\n.icons-ul > li {\n  position: relative;\n}\n.icons-ul .icon-li {\n  position: absolute;\n  left: -2.142857142857143em;\n  width: 2.142857142857143em;\n  text-align: center;\n  line-height: inherit;\n}\n[class^=\"icon-\"].hide,\n[class*=\" icon-\"].hide {\n  display: none;\n}\n.icon-muted {\n  color: #eeeeee;\n}\n.icon-light {\n  color: #ffffff;\n}\n.icon-dark {\n  color: #333333;\n}\n.icon-border {\n  border: solid 1px #eeeeee;\n  padding: .2em .25em .15em;\n  -webkit-border-radius: 3px;\n  -moz-border-radius: 3px;\n  border-radius: 3px;\n}\n.icon-2x {\n  font-size: 2em;\n}\n.icon-2x.icon-border {\n  border-width: 2px;\n  -webkit-border-radius: 4px;\n  -moz-border-radius: 4px;\n  border-radius: 4px;\n}\n.icon-3x {\n  font-size: 3em;\n}\n.icon-3x.icon-border {\n  border-width: 3px;\n  -webkit-border-radius: 5px;\n  -moz-border-radius: 5px;\n  border-radius: 5px;\n}\n.icon-4x {\n  font-size: 4em;\n}\n.icon-4x.icon-border {\n  border-width: 4px;\n  -webkit-border-radius: 6px;\n  -moz-border-radius: 6px;\n  border-radius: 6px;\n}\n.icon-5x {\n  font-size: 5em;\n}\n.icon-5x.icon-border {\n  border-width: 5px;\n  -webkit-border-radius: 7px;\n  -moz-border-radius: 7px;\n  border-radius: 7px;\n}\n.pull-right {\n  float: right;\n}\n.pull-left {\n  float: left;\n}\n[class^=\"icon-\"].pull-left,\n[class*=\" icon-\"].pull-left {\n  margin-right: .3em;\n}\n[class^=\"icon-\"].pull-right,\n[class*=\" icon-\"].pull-right {\n  margin-left: .3em;\n}\n/* BOOTSTRAP SPECIFIC CLASSES\n * -------------------------- */\n/* Bootstrap 2.0 sprites.less reset */\n[class^=\"icon-\"],\n[class*=\" icon-\"] {\n  display: inline;\n  width: auto;\n  height: auto;\n  line-height: normal;\n  vertical-align: baseline;\n  background-image: none;\n  background-position: 0% 0%;\n  background-repeat: repeat;\n  margin-top: 0;\n}\n/* more sprites.less reset */\n.icon-white,\n.nav-pills > .active > a > [class^=\"icon-\"],\n.nav-pills > .active > a > [class*=\" icon-\"],\n.nav-list > .active > a > [class^=\"icon-\"],\n.nav-list > .active > a > [class*=\" icon-\"],\n.navbar-inverse .nav > .active > a > [class^=\"icon-\"],\n.navbar-inverse .nav > .active > a > [class*=\" icon-\"],\n.dropdown-menu > li > a:hover > [class^=\"icon-\"],\n.dropdown-menu > li > a:hover > [class*=\" icon-\"],\n.dropdown-menu > .active > a > [class^=\"icon-\"],\n.dropdown-menu > .active > a > [class*=\" icon-\"],\n.dropdown-submenu:hover > a > [class^=\"icon-\"],\n.dropdown-submenu:hover > a > [class*=\" icon-\"] {\n  background-image: none;\n}\n/* keeps Bootstrap styles with and without icons the same */\n.btn [class^=\"icon-\"].icon-large,\n.nav [class^=\"icon-\"].icon-large,\n.btn [class*=\" icon-\"].icon-large,\n.nav [class*=\" icon-\"].icon-large {\n  line-height: .9em;\n}\n.btn [class^=\"icon-\"].icon-spin,\n.nav [class^=\"icon-\"].icon-spin,\n.btn [class*=\" icon-\"].icon-spin,\n.nav [class*=\" icon-\"].icon-spin {\n  display: inline-block;\n}\n.nav-tabs [class^=\"icon-\"],\n.nav-pills [class^=\"icon-\"],\n.nav-tabs [class*=\" icon-\"],\n.nav-pills [class*=\" icon-\"],\n.nav-tabs [class^=\"icon-\"].icon-large,\n.nav-pills [class^=\"icon-\"].icon-large,\n.nav-tabs [class*=\" icon-\"].icon-large,\n.nav-pills [class*=\" icon-\"].icon-large {\n  line-height: .9em;\n}\n.btn [class^=\"icon-\"].pull-left.icon-2x,\n.btn [class*=\" icon-\"].pull-left.icon-2x,\n.btn [class^=\"icon-\"].pull-right.icon-2x,\n.btn [class*=\" icon-\"].pull-right.icon-2x {\n  margin-top: .18em;\n}\n.btn [class^=\"icon-\"].icon-spin.icon-large,\n.btn [class*=\" icon-\"].icon-spin.icon-large {\n  line-height: .8em;\n}\n.btn.btn-small [class^=\"icon-\"].pull-left.icon-2x,\n.btn.btn-small [class*=\" icon-\"].pull-left.icon-2x,\n.btn.btn-small [class^=\"icon-\"].pull-right.icon-2x,\n.btn.btn-small [class*=\" icon-\"].pull-right.icon-2x {\n  margin-top: .25em;\n}\n.btn.btn-large [class^=\"icon-\"],\n.btn.btn-large [class*=\" icon-\"] {\n  margin-top: 0;\n}\n.btn.btn-large [class^=\"icon-\"].pull-left.icon-2x,\n.btn.btn-large [class*=\" icon-\"].pull-left.icon-2x,\n.btn.btn-large [class^=\"icon-\"].pull-right.icon-2x,\n.btn.btn-large [class*=\" icon-\"].pull-right.icon-2x {\n  margin-top: .05em;\n}\n.btn.btn-large [class^=\"icon-\"].pull-left.icon-2x,\n.btn.btn-large [class*=\" icon-\"].pull-left.icon-2x {\n  margin-right: .2em;\n}\n.btn.btn-large [class^=\"icon-\"].pull-right.icon-2x,\n.btn.btn-large [class*=\" icon-\"].pull-right.icon-2x {\n  margin-left: .2em;\n}\n/* Fixes alignment in nav lists */\n.nav-list [class^=\"icon-\"],\n.nav-list [class*=\" icon-\"] {\n  line-height: inherit;\n}\n/* EXTRAS\n * -------------------------- */\n/* Stacked and layered icon */\n.icon-stack {\n  position: relative;\n  display: inline-block;\n  width: 2em;\n  height: 2em;\n  line-height: 2em;\n  vertical-align: -35%;\n}\n.icon-stack [class^=\"icon-\"],\n.icon-stack [class*=\" icon-\"] {\n  display: block;\n  text-align: center;\n  position: absolute;\n  width: 100%;\n  height: 100%;\n  font-size: 1em;\n  line-height: inherit;\n  *line-height: 2em;\n}\n.icon-stack .icon-stack-base {\n  font-size: 2em;\n  *line-height: 1em;\n}\n/* Animated rotating icon */\n.icon-spin {\n  display: inline-block;\n  -moz-animation: spin 2s infinite linear;\n  -o-animation: spin 2s infinite linear;\n  -webkit-animation: spin 2s infinite linear;\n  animation: spin 2s infinite linear;\n}\n/* Prevent stack and spinners from being taken inline when inside a link */\na .icon-stack,\na .icon-spin {\n  display: inline-block;\n  text-decoration: none;\n}\n@-moz-keyframes spin {\n  0% {\n    -moz-transform: rotate(0deg);\n  }\n  100% {\n    -moz-transform: rotate(359deg);\n  }\n}\n@-webkit-keyframes spin {\n  0% {\n    -webkit-transform: rotate(0deg);\n  }\n  100% {\n    -webkit-transform: rotate(359deg);\n  }\n}\n@-o-keyframes spin {\n  0% {\n    -o-transform: rotate(0deg);\n  }\n  100% {\n    -o-transform: rotate(359deg);\n  }\n}\n@-ms-keyframes spin {\n  0% {\n    -ms-transform: rotate(0deg);\n  }\n  100% {\n    -ms-transform: rotate(359deg);\n  }\n}\n@keyframes spin {\n  0% {\n    transform: rotate(0deg);\n  }\n  100% {\n    transform: rotate(359deg);\n  }\n}\n/* Icon rotations and mirroring */\n.icon-rotate-90:before {\n  -webkit-transform: rotate(90deg);\n  -moz-transform: rotate(90deg);\n  -ms-transform: rotate(90deg);\n  -o-transform: rotate(90deg);\n  transform: rotate(90deg);\n  filter: progid:DXImageTransform.Microsoft.BasicImage(rotation=1);\n}\n.icon-rotate-180:before {\n  -webkit-transform: rotate(180deg);\n  -moz-transform: rotate(180deg);\n  -ms-transform: rotate(180deg);\n  -o-transform: rotate(180deg);\n  transform: rotate(180deg);\n  filter: progid:DXImageTransform.Microsoft.BasicImage(rotation=2);\n}\n.icon-rotate-270:before {\n  -webkit-transform: rotate(270deg);\n  -moz-transform: rotate(270deg);\n  -ms-transform: rotate(270deg);\n  -o-transform: rotate(270deg);\n  transform: rotate(270deg);\n  filter: progid:DXImageTransform.Microsoft.BasicImage(rotation=3);\n}\n.icon-flip-horizontal:before {\n  -webkit-transform: scale(-1, 1);\n  -moz-transform: scale(-1, 1);\n  -ms-transform: scale(-1, 1);\n  -o-transform: scale(-1, 1);\n  transform: scale(-1, 1);\n}\n.icon-flip-vertical:before {\n  -webkit-transform: scale(1, -1);\n  -moz-transform: scale(1, -1);\n  -ms-transform: scale(1, -1);\n  -o-transform: scale(1, -1);\n  transform: scale(1, -1);\n}\n/* ensure rotation occurs inside anchor tags */\na .icon-rotate-90:before,\na .icon-rotate-180:before,\na .icon-rotate-270:before,\na .icon-flip-horizontal:before,\na .icon-flip-vertical:before {\n  display: inline-block;\n}\n/* Font Awesome uses the Unicode Private Use Area (PUA) to ensure screen\n   readers do not read off random characters that represent icons */\n.icon-glass:before {\n  content: \"\\f000\";\n}\n.icon-music:before {\n  content: \"\\f001\";\n}\n.icon-search:before {\n  content: \"\\f002\";\n}\n.icon-envelope-alt:before {\n  content: \"\\f003\";\n}\n.icon-heart:before {\n  content: \"\\f004\";\n}\n.icon-star:before {\n  content: \"\\f005\";\n}\n.icon-star-empty:before {\n  content: \"\\f006\";\n}\n.icon-user:before {\n  content: \"\\f007\";\n}\n.icon-film:before {\n  content: \"\\f008\";\n}\n.icon-th-large:before {\n  content: \"\\f009\";\n}\n.icon-th:before {\n  content: \"\\f00a\";\n}\n.icon-th-list:before {\n  content: \"\\f00b\";\n}\n.icon-ok:before {\n  content: \"\\f00c\";\n}\n.icon-remove:before {\n  content: \"\\f00d\";\n}\n.icon-zoom-in:before {\n  content: \"\\f00e\";\n}\n.icon-zoom-out:before {\n  content: \"\\f010\";\n}\n.icon-power-off:before,\n.icon-off:before {\n  content: \"\\f011\";\n}\n.icon-signal:before {\n  content: \"\\f012\";\n}\n.icon-gear:before,\n.icon-cog:before {\n  content: \"\\f013\";\n}\n.icon-trash:before {\n  content: \"\\f014\";\n}\n.icon-home:before {\n  content: \"\\f015\";\n}\n.icon-file-alt:before {\n  content: \"\\f016\";\n}\n.icon-time:before {\n  content: \"\\f017\";\n}\n.icon-road:before {\n  content: \"\\f018\";\n}\n.icon-download-alt:before {\n  content: \"\\f019\";\n}\n.icon-download:before {\n  content: \"\\f01a\";\n}\n.icon-upload:before {\n  content: \"\\f01b\";\n}\n.icon-inbox:before {\n  content: \"\\f01c\";\n}\n.icon-play-circle:before {\n  content: \"\\f01d\";\n}\n.icon-rotate-right:before,\n.icon-repeat:before {\n  content: \"\\f01e\";\n}\n.icon-refresh:before {\n  content: \"\\f021\";\n}\n.icon-list-alt:before {\n  content: \"\\f022\";\n}\n.icon-lock:before {\n  content: \"\\f023\";\n}\n.icon-flag:before {\n  content: \"\\f024\";\n}\n.icon-headphones:before {\n  content: \"\\f025\";\n}\n.icon-volume-off:before {\n  content: \"\\f026\";\n}\n.icon-volume-down:before {\n  content: \"\\f027\";\n}\n.icon-volume-up:before {\n  content: \"\\f028\";\n}\n.icon-qrcode:before {\n  content: \"\\f029\";\n}\n.icon-barcode:before {\n  content: \"\\f02a\";\n}\n.icon-tag:before {\n  content: \"\\f02b\";\n}\n.icon-tags:before {\n  content: \"\\f02c\";\n}\n.icon-book:before {\n  content: \"\\f02d\";\n}\n.icon-bookmark:before {\n  content: \"\\f02e\";\n}\n.icon-print:before {\n  content: \"\\f02f\";\n}\n.icon-camera:before {\n  content: \"\\f030\";\n}\n.icon-font:before {\n  content: \"\\f031\";\n}\n.icon-bold:before {\n  content: \"\\f032\";\n}\n.icon-italic:before {\n  content: \"\\f033\";\n}\n.icon-text-height:before {\n  content: \"\\f034\";\n}\n.icon-text-width:before {\n  content: \"\\f035\";\n}\n.icon-align-left:before {\n  content: \"\\f036\";\n}\n.icon-align-center:before {\n  content: \"\\f037\";\n}\n.icon-align-right:before {\n  content: \"\\f038\";\n}\n.icon-align-justify:before {\n  content: \"\\f039\";\n}\n.icon-list:before {\n  content: \"\\f03a\";\n}\n.icon-indent-left:before {\n  content: \"\\f03b\";\n}\n.icon-indent-right:before {\n  content: \"\\f03c\";\n}\n.icon-facetime-video:before {\n  content: \"\\f03d\";\n}\n.icon-picture:before {\n  content: \"\\f03e\";\n}\n.icon-pencil:before {\n  content: \"\\f040\";\n}\n.icon-map-marker:before {\n  content: \"\\f041\";\n}\n.icon-adjust:before {\n  content: \"\\f042\";\n}\n.icon-tint:before {\n  content: \"\\f043\";\n}\n.icon-edit:before {\n  content: \"\\f044\";\n}\n.icon-share:before {\n  content: \"\\f045\";\n}\n.icon-check:before {\n  content: \"\\f046\";\n}\n.icon-move:before {\n  content: \"\\f047\";\n}\n.icon-step-backward:before {\n  content: \"\\f048\";\n}\n.icon-fast-backward:before {\n  content: \"\\f049\";\n}\n.icon-backward:before {\n  content: \"\\f04a\";\n}\n.icon-play:before {\n  content: \"\\f04b\";\n}\n.icon-pause:before {\n  content: \"\\f04c\";\n}\n.icon-stop:before {\n  content: \"\\f04d\";\n}\n.icon-forward:before {\n  content: \"\\f04e\";\n}\n.icon-fast-forward:before {\n  content: \"\\f050\";\n}\n.icon-step-forward:before {\n  content: \"\\f051\";\n}\n.icon-eject:before {\n  content: \"\\f052\";\n}\n.icon-chevron-left:before {\n  content: \"\\f053\";\n}\n.icon-chevron-right:before {\n  content: \"\\f054\";\n}\n.icon-plus-sign:before {\n  content: \"\\f055\";\n}\n.icon-minus-sign:before {\n  content: \"\\f056\";\n}\n.icon-remove-sign:before {\n  content: \"\\f057\";\n}\n.icon-ok-sign:before {\n  content: \"\\f058\";\n}\n.icon-question-sign:before {\n  content: \"\\f059\";\n}\n.icon-info-sign:before {\n  content: \"\\f05a\";\n}\n.icon-screenshot:before {\n  content: \"\\f05b\";\n}\n.icon-remove-circle:before {\n  content: \"\\f05c\";\n}\n.icon-ok-circle:before {\n  content: \"\\f05d\";\n}\n.icon-ban-circle:before {\n  content: \"\\f05e\";\n}\n.icon-arrow-left:before {\n  content: \"\\f060\";\n}\n.icon-arrow-right:before {\n  content: \"\\f061\";\n}\n.icon-arrow-up:before {\n  content: \"\\f062\";\n}\n.icon-arrow-down:before {\n  content: \"\\f063\";\n}\n.icon-mail-forward:before,\n.icon-share-alt:before {\n  content: \"\\f064\";\n}\n.icon-resize-full:before {\n  content: \"\\f065\";\n}\n.icon-resize-small:before {\n  content: \"\\f066\";\n}\n.icon-plus:before {\n  content: \"\\f067\";\n}\n.icon-minus:before {\n  content: \"\\f068\";\n}\n.icon-asterisk:before {\n  content: \"\\f069\";\n}\n.icon-exclamation-sign:before {\n  content: \"\\f06a\";\n}\n.icon-gift:before {\n  content: \"\\f06b\";\n}\n.icon-leaf:before {\n  content: \"\\f06c\";\n}\n.icon-fire:before {\n  content: \"\\f06d\";\n}\n.icon-eye-open:before {\n  content: \"\\f06e\";\n}\n.icon-eye-close:before {\n  content: \"\\f070\";\n}\n.icon-warning-sign:before {\n  content: \"\\f071\";\n}\n.icon-plane:before {\n  content: \"\\f072\";\n}\n.icon-calendar:before {\n  content: \"\\f073\";\n}\n.icon-random:before {\n  content: \"\\f074\";\n}\n.icon-comment:before {\n  content: \"\\f075\";\n}\n.icon-magnet:before {\n  content: \"\\f076\";\n}\n.icon-chevron-up:before {\n  content: \"\\f077\";\n}\n.icon-chevron-down:before {\n  content: \"\\f078\";\n}\n.icon-retweet:before {\n  content: \"\\f079\";\n}\n.icon-shopping-cart:before {\n  content: \"\\f07a\";\n}\n.icon-folder-close:before {\n  content: \"\\f07b\";\n}\n.icon-folder-open:before {\n  content: \"\\f07c\";\n}\n.icon-resize-vertical:before {\n  content: \"\\f07d\";\n}\n.icon-resize-horizontal:before {\n  content: \"\\f07e\";\n}\n.icon-bar-chart:before {\n  content: \"\\f080\";\n}\n.icon-twitter-sign:before {\n  content: \"\\f081\";\n}\n.icon-facebook-sign:before {\n  content: \"\\f082\";\n}\n.icon-camera-retro:before {\n  content: \"\\f083\";\n}\n.icon-key:before {\n  content: \"\\f084\";\n}\n.icon-gears:before,\n.icon-cogs:before {\n  content: \"\\f085\";\n}\n.icon-comments:before {\n  content: \"\\f086\";\n}\n.icon-thumbs-up-alt:before {\n  content: \"\\f087\";\n}\n.icon-thumbs-down-alt:before {\n  content: \"\\f088\";\n}\n.icon-star-half:before {\n  content: \"\\f089\";\n}\n.icon-heart-empty:before {\n  content: \"\\f08a\";\n}\n.icon-signout:before {\n  content: \"\\f08b\";\n}\n.icon-linkedin-sign:before {\n  content: \"\\f08c\";\n}\n.icon-pushpin:before {\n  content: \"\\f08d\";\n}\n.icon-external-link:before {\n  content: \"\\f08e\";\n}\n.icon-signin:before {\n  content: \"\\f090\";\n}\n.icon-trophy:before {\n  content: \"\\f091\";\n}\n.icon-github-sign:before {\n  content: \"\\f092\";\n}\n.icon-upload-alt:before {\n  content: \"\\f093\";\n}\n.icon-lemon:before {\n  content: \"\\f094\";\n}\n.icon-phone:before {\n  content: \"\\f095\";\n}\n.icon-unchecked:before,\n.icon-check-empty:before {\n  content: \"\\f096\";\n}\n.icon-bookmark-empty:before {\n  content: \"\\f097\";\n}\n.icon-phone-sign:before {\n  content: \"\\f098\";\n}\n.icon-twitter:before {\n  content: \"\\f099\";\n}\n.icon-facebook:before {\n  content: \"\\f09a\";\n}\n.icon-github:before {\n  content: \"\\f09b\";\n}\n.icon-unlock:before {\n  content: \"\\f09c\";\n}\n.icon-credit-card:before {\n  content: \"\\f09d\";\n}\n.icon-rss:before {\n  content: \"\\f09e\";\n}\n.icon-hdd:before {\n  content: \"\\f0a0\";\n}\n.icon-bullhorn:before {\n  content: \"\\f0a1\";\n}\n.icon-bell:before {\n  content: \"\\f0a2\";\n}\n.icon-certificate:before {\n  content: \"\\f0a3\";\n}\n.icon-hand-right:before {\n  content: \"\\f0a4\";\n}\n.icon-hand-left:before {\n  content: \"\\f0a5\";\n}\n.icon-hand-up:before {\n  content: \"\\f0a6\";\n}\n.icon-hand-down:before {\n  content: \"\\f0a7\";\n}\n.icon-circle-arrow-left:before {\n  content: \"\\f0a8\";\n}\n.icon-circle-arrow-right:before {\n  content: \"\\f0a9\";\n}\n.icon-circle-arrow-up:before {\n  content: \"\\f0aa\";\n}\n.icon-circle-arrow-down:before {\n  content: \"\\f0ab\";\n}\n.icon-globe:before {\n  content: \"\\f0ac\";\n}\n.icon-wrench:before {\n  content: \"\\f0ad\";\n}\n.icon-tasks:before {\n  content: \"\\f0ae\";\n}\n.icon-filter:before {\n  content: \"\\f0b0\";\n}\n.icon-briefcase:before {\n  content: \"\\f0b1\";\n}\n.icon-fullscreen:before {\n  content: \"\\f0b2\";\n}\n.icon-group:before {\n  content: \"\\f0c0\";\n}\n.icon-link:before {\n  content: \"\\f0c1\";\n}\n.icon-cloud:before {\n  content: \"\\f0c2\";\n}\n.icon-beaker:before {\n  content: \"\\f0c3\";\n}\n.icon-cut:before {\n  content: \"\\f0c4\";\n}\n.icon-copy:before {\n  content: \"\\f0c5\";\n}\n.icon-paperclip:before,\n.icon-paper-clip:before {\n  content: \"\\f0c6\";\n}\n.icon-save:before {\n  content: \"\\f0c7\";\n}\n.icon-sign-blank:before {\n  content: \"\\f0c8\";\n}\n.icon-reorder:before {\n  content: \"\\f0c9\";\n}\n.icon-list-ul:before {\n  content: \"\\f0ca\";\n}\n.icon-list-ol:before {\n  content: \"\\f0cb\";\n}\n.icon-strikethrough:before {\n  content: \"\\f0cc\";\n}\n.icon-underline:before {\n  content: \"\\f0cd\";\n}\n.icon-table:before {\n  content: \"\\f0ce\";\n}\n.icon-magic:before {\n  content: \"\\f0d0\";\n}\n.icon-truck:before {\n  content: \"\\f0d1\";\n}\n.icon-pinterest:before {\n  content: \"\\f0d2\";\n}\n.icon-pinterest-sign:before {\n  content: \"\\f0d3\";\n}\n.icon-google-plus-sign:before {\n  content: \"\\f0d4\";\n}\n.icon-google-plus:before {\n  content: \"\\f0d5\";\n}\n.icon-money:before {\n  content: \"\\f0d6\";\n}\n.icon-caret-down:before {\n  content: \"\\f0d7\";\n}\n.icon-caret-up:before {\n  content: \"\\f0d8\";\n}\n.icon-caret-left:before {\n  content: \"\\f0d9\";\n}\n.icon-caret-right:before {\n  content: \"\\f0da\";\n}\n.icon-columns:before {\n  content: \"\\f0db\";\n}\n.icon-sort:before {\n  content: \"\\f0dc\";\n}\n.icon-sort-down:before {\n  content: \"\\f0dd\";\n}\n.icon-sort-up:before {\n  content: \"\\f0de\";\n}\n.icon-envelope:before {\n  content: \"\\f0e0\";\n}\n.icon-linkedin:before {\n  content: \"\\f0e1\";\n}\n.icon-rotate-left:before,\n.icon-undo:before {\n  content: \"\\f0e2\";\n}\n.icon-legal:before {\n  content: \"\\f0e3\";\n}\n.icon-dashboard:before {\n  content: \"\\f0e4\";\n}\n.icon-comment-alt:before {\n  content: \"\\f0e5\";\n}\n.icon-comments-alt:before {\n  content: \"\\f0e6\";\n}\n.icon-bolt:before {\n  content: \"\\f0e7\";\n}\n.icon-sitemap:before {\n  content: \"\\f0e8\";\n}\n.icon-umbrella:before {\n  content: \"\\f0e9\";\n}\n.icon-paste:before {\n  content: \"\\f0ea\";\n}\n.icon-lightbulb:before {\n  content: \"\\f0eb\";\n}\n.icon-exchange:before {\n  content: \"\\f0ec\";\n}\n.icon-cloud-download:before {\n  content: \"\\f0ed\";\n}\n.icon-cloud-upload:before {\n  content: \"\\f0ee\";\n}\n.icon-user-md:before {\n  content: \"\\f0f0\";\n}\n.icon-stethoscope:before {\n  content: \"\\f0f1\";\n}\n.icon-suitcase:before {\n  content: \"\\f0f2\";\n}\n.icon-bell-alt:before {\n  content: \"\\f0f3\";\n}\n.icon-coffee:before {\n  content: \"\\f0f4\";\n}\n.icon-food:before {\n  content: \"\\f0f5\";\n}\n.icon-file-text-alt:before {\n  content: \"\\f0f6\";\n}\n.icon-building:before {\n  content: \"\\f0f7\";\n}\n.icon-hospital:before {\n  content: \"\\f0f8\";\n}\n.icon-ambulance:before {\n  content: \"\\f0f9\";\n}\n.icon-medkit:before {\n  content: \"\\f0fa\";\n}\n.icon-fighter-jet:before {\n  content: \"\\f0fb\";\n}\n.icon-beer:before {\n  content: \"\\f0fc\";\n}\n.icon-h-sign:before {\n  content: \"\\f0fd\";\n}\n.icon-plus-sign-alt:before {\n  content: \"\\f0fe\";\n}\n.icon-double-angle-left:before {\n  content: \"\\f100\";\n}\n.icon-double-angle-right:before {\n  content: \"\\f101\";\n}\n.icon-double-angle-up:before {\n  content: \"\\f102\";\n}\n.icon-double-angle-down:before {\n  content: \"\\f103\";\n}\n.icon-angle-left:before {\n  content: \"\\f104\";\n}\n.icon-angle-right:before {\n  content: \"\\f105\";\n}\n.icon-angle-up:before {\n  content: \"\\f106\";\n}\n.icon-angle-down:before {\n  content: \"\\f107\";\n}\n.icon-desktop:before {\n  content: \"\\f108\";\n}\n.icon-laptop:before {\n  content: \"\\f109\";\n}\n.icon-tablet:before {\n  content: \"\\f10a\";\n}\n.icon-mobile-phone:before {\n  content: \"\\f10b\";\n}\n.icon-circle-blank:before {\n  content: \"\\f10c\";\n}\n.icon-quote-left:before {\n  content: \"\\f10d\";\n}\n.icon-quote-right:before {\n  content: \"\\f10e\";\n}\n.icon-spinner:before {\n  content: \"\\f110\";\n}\n.icon-circle:before {\n  content: \"\\f111\";\n}\n.icon-mail-reply:before,\n.icon-reply:before {\n  content: \"\\f112\";\n}\n.icon-github-alt:before {\n  content: \"\\f113\";\n}\n.icon-folder-close-alt:before {\n  content: \"\\f114\";\n}\n.icon-folder-open-alt:before {\n  content: \"\\f115\";\n}\n.icon-expand-alt:before {\n  content: \"\\f116\";\n}\n.icon-collapse-alt:before {\n  content: \"\\f117\";\n}\n.icon-smile:before {\n  content: \"\\f118\";\n}\n.icon-frown:before {\n  content: \"\\f119\";\n}\n.icon-meh:before {\n  content: \"\\f11a\";\n}\n.icon-gamepad:before {\n  content: \"\\f11b\";\n}\n.icon-keyboard:before {\n  content: \"\\f11c\";\n}\n.icon-flag-alt:before {\n  content: \"\\f11d\";\n}\n.icon-flag-checkered:before {\n  content: \"\\f11e\";\n}\n.icon-terminal:before {\n  content: \"\\f120\";\n}\n.icon-code:before {\n  content: \"\\f121\";\n}\n.icon-reply-all:before {\n  content: \"\\f122\";\n}\n.icon-mail-reply-all:before {\n  content: \"\\f122\";\n}\n.icon-star-half-full:before,\n.icon-star-half-empty:before {\n  content: \"\\f123\";\n}\n.icon-location-arrow:before {\n  content: \"\\f124\";\n}\n.icon-crop:before {\n  content: \"\\f125\";\n}\n.icon-code-fork:before {\n  content: \"\\f126\";\n}\n.icon-unlink:before {\n  content: \"\\f127\";\n}\n.icon-question:before {\n  content: \"\\f128\";\n}\n.icon-info:before {\n  content: \"\\f129\";\n}\n.icon-exclamation:before {\n  content: \"\\f12a\";\n}\n.icon-superscript:before {\n  content: \"\\f12b\";\n}\n.icon-subscript:before {\n  content: \"\\f12c\";\n}\n.icon-eraser:before {\n  content: \"\\f12d\";\n}\n.icon-puzzle-piece:before {\n  content: \"\\f12e\";\n}\n.icon-microphone:before {\n  content: \"\\f130\";\n}\n.icon-microphone-off:before {\n  content: \"\\f131\";\n}\n.icon-shield:before {\n  content: \"\\f132\";\n}\n.icon-calendar-empty:before {\n  content: \"\\f133\";\n}\n.icon-fire-extinguisher:before {\n  content: \"\\f134\";\n}\n.icon-rocket:before {\n  content: \"\\f135\";\n}\n.icon-maxcdn:before {\n  content: \"\\f136\";\n}\n.icon-chevron-sign-left:before {\n  content: \"\\f137\";\n}\n.icon-chevron-sign-right:before {\n  content: \"\\f138\";\n}\n.icon-chevron-sign-up:before {\n  content: \"\\f139\";\n}\n.icon-chevron-sign-down:before {\n  content: \"\\f13a\";\n}\n.icon-html5:before {\n  content: \"\\f13b\";\n}\n.icon-css3:before {\n  content: \"\\f13c\";\n}\n.icon-anchor:before {\n  content: \"\\f13d\";\n}\n.icon-unlock-alt:before {\n  content: \"\\f13e\";\n}\n.icon-bullseye:before {\n  content: \"\\f140\";\n}\n.icon-ellipsis-horizontal:before {\n  content: \"\\f141\";\n}\n.icon-ellipsis-vertical:before {\n  content: \"\\f142\";\n}\n.icon-rss-sign:before {\n  content: \"\\f143\";\n}\n.icon-play-sign:before {\n  content: \"\\f144\";\n}\n.icon-ticket:before {\n  content: \"\\f145\";\n}\n.icon-minus-sign-alt:before {\n  content: \"\\f146\";\n}\n.icon-check-minus:before {\n  content: \"\\f147\";\n}\n.icon-level-up:before {\n  content: \"\\f148\";\n}\n.icon-level-down:before {\n  content: \"\\f149\";\n}\n.icon-check-sign:before {\n  content: \"\\f14a\";\n}\n.icon-edit-sign:before {\n  content: \"\\f14b\";\n}\n.icon-external-link-sign:before {\n  content: \"\\f14c\";\n}\n.icon-share-sign:before {\n  content: \"\\f14d\";\n}\n.icon-compass:before {\n  content: \"\\f14e\";\n}\n.icon-collapse:before {\n  content: \"\\f150\";\n}\n.icon-collapse-top:before {\n  content: \"\\f151\";\n}\n.icon-expand:before {\n  content: \"\\f152\";\n}\n.icon-euro:before,\n.icon-eur:before {\n  content: \"\\f153\";\n}\n.icon-gbp:before {\n  content: \"\\f154\";\n}\n.icon-dollar:before,\n.icon-usd:before {\n  content: \"\\f155\";\n}\n.icon-rupee:before,\n.icon-inr:before {\n  content: \"\\f156\";\n}\n.icon-yen:before,\n.icon-jpy:before {\n  content: \"\\f157\";\n}\n.icon-renminbi:before,\n.icon-cny:before {\n  content: \"\\f158\";\n}\n.icon-won:before,\n.icon-krw:before {\n  content: \"\\f159\";\n}\n.icon-bitcoin:before,\n.icon-btc:before {\n  content: \"\\f15a\";\n}\n.icon-file:before {\n  content: \"\\f15b\";\n}\n.icon-file-text:before {\n  content: \"\\f15c\";\n}\n.icon-sort-by-alphabet:before {\n  content: \"\\f15d\";\n}\n.icon-sort-by-alphabet-alt:before {\n  content: \"\\f15e\";\n}\n.icon-sort-by-attributes:before {\n  content: \"\\f160\";\n}\n.icon-sort-by-attributes-alt:before {\n  content: \"\\f161\";\n}\n.icon-sort-by-order:before {\n  content: \"\\f162\";\n}\n.icon-sort-by-order-alt:before {\n  content: \"\\f163\";\n}\n.icon-thumbs-up:before {\n  content: \"\\f164\";\n}\n.icon-thumbs-down:before {\n  content: \"\\f165\";\n}\n.icon-youtube-sign:before {\n  content: \"\\f166\";\n}\n.icon-youtube:before {\n  content: \"\\f167\";\n}\n.icon-xing:before {\n  content: \"\\f168\";\n}\n.icon-xing-sign:before {\n  content: \"\\f169\";\n}\n.icon-youtube-play:before {\n  content: \"\\f16a\";\n}\n.icon-dropbox:before {\n  content: \"\\f16b\";\n}\n.icon-stackexchange:before {\n  content: \"\\f16c\";\n}\n.icon-instagram:before {\n  content: \"\\f16d\";\n}\n.icon-flickr:before {\n  content: \"\\f16e\";\n}\n.icon-adn:before {\n  content: \"\\f170\";\n}\n.icon-bitbucket:before {\n  content: \"\\f171\";\n}\n.icon-bitbucket-sign:before {\n  content: \"\\f172\";\n}\n.icon-tumblr:before {\n  content: \"\\f173\";\n}\n.icon-tumblr-sign:before {\n  content: \"\\f174\";\n}\n.icon-long-arrow-down:before {\n  content: \"\\f175\";\n}\n.icon-long-arrow-up:before {\n  content: \"\\f176\";\n}\n.icon-long-arrow-left:before {\n  content: \"\\f177\";\n}\n.icon-long-arrow-right:before {\n  content: \"\\f178\";\n}\n.icon-apple:before {\n  content: \"\\f179\";\n}\n.icon-windows:before {\n  content: \"\\f17a\";\n}\n.icon-android:before {\n  content: \"\\f17b\";\n}\n.icon-linux:before {\n  content: \"\\f17c\";\n}\n.icon-dribbble:before {\n  content: \"\\f17d\";\n}\n.icon-skype:before {\n  content: \"\\f17e\";\n}\n.icon-foursquare:before {\n  content: \"\\f180\";\n}\n.icon-trello:before {\n  content: \"\\f181\";\n}\n.icon-female:before {\n  content: \"\\f182\";\n}\n.icon-male:before {\n  content: \"\\f183\";\n}\n.icon-gittip:before {\n  content: \"\\f184\";\n}\n.icon-sun:before {\n  content: \"\\f185\";\n}\n.icon-moon:before {\n  content: \"\\f186\";\n}\n.icon-archive:before {\n  content: \"\\f187\";\n}\n.icon-bug:before {\n  content: \"\\f188\";\n}\n.icon-vk:before {\n  content: \"\\f189\";\n}\n.icon-weibo:before {\n  content: \"\\f18a\";\n}\n.icon-renren:before {\n  content: \"\\f18b\";\n}\n"; s.id = "css-font-awesome"; document.head.appendChild(s);}, "data/stylesheets/introjs": function(exports, require, module) {s = document.createElement('style'); s.innerHTML = ".introjs-overlay {\n  position: absolute;\n  z-index: 999999;\n  background-color: #000;\n  opacity: 0;\n  -webkit-transition: all 0.3s ease-out;\n     -moz-transition: all 0.3s ease-out;\n      -ms-transition: all 0.3s ease-out;\n       -o-transition: all 0.3s ease-out;\n          transition: all 0.3s ease-out;\n}\n\n.introjs-showElement {\n  z-index: 9999999;\n}\n\n.introjs-relativePosition {\n  position: relative;\n}\n\n.introjs-helperLayer {\n  position: absolute;\n  z-index: 9999998;\n  background-color: rgba(255,255,255,.9);\n  border: 1px solid rgba(0,0,0,.5);\n  border-radius: 4px;\n  box-shadow: 0 2px 15px rgba(0,0,0,.4);\n  -webkit-transition: all 0.3s ease-out;\n     -moz-transition: all 0.3s ease-out;\n      -ms-transition: all 0.3s ease-out;\n       -o-transition: all 0.3s ease-out;\n          transition: all 0.3s ease-out;\n}\n\n.introjs-helperNumberLayer {\n  position: absolute;\n  top: -16px;\n  left: -16px;\n  z-index: 9999999999 !important;\n  padding: 2px;\n  font-family: Arial, verdana, tahoma;\n  font-size: 13px;\n  font-weight: bold;\n  color: white;\n  text-align: center;\n  text-shadow: 1px 1px 1px rgba(0,0,0,.3);\n  background: #ff3019; /* Old browsers */\n  background: -webkit-linear-gradient(top, #ff3019 0%, #cf0404 100%); /* Chrome10+,Safari5.1+ */\n  background: -webkit-gradient(linear, left top, left bottom, color-stop(0%, #ff3019), color-stop(100%, #cf0404)); /* Chrome,Safari4+ */\n  background:    -moz-linear-gradient(top, #ff3019 0%, #cf0404 100%); /* FF3.6+ */\n  background:     -ms-linear-gradient(top, #ff3019 0%, #cf0404 100%); /* IE10+ */\n  background:      -o-linear-gradient(top, #ff3019 0%, #cf0404 100%); /* Opera 11.10+ */\n  background:         linear-gradient(to bottom, #ff3019 0%, #cf0404 100%);  /* W3C */\n  width: 20px;\n  height:20px;\n  line-height: 20px;\n  border: 3px solid white;\n  border-radius: 50%;\n  filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#ff3019', endColorstr='#cf0404', GradientType=0); /* IE6-9 */ \n  filter: progid:DXImageTransform.Microsoft.Shadow(direction=135, strength=2, color=ff0000); /* IE10 text shadows */\n  box-shadow: 0 2px 5px rgba(0,0,0,.4);\n}\n\n.introjs-arrow {\n  border: 5px solid white;\n  content:'';\n  position: absolute;\n}\n.introjs-arrow.top {\n  top: -10px;\n  border-top-color:transparent;\n  border-right-color:transparent;\n  border-bottom-color:white;\n  border-left-color:transparent;\n}\n.introjs-arrow.right {\n  right: -10px;\n  top: 10px;\n  border-top-color:transparent;\n  border-right-color:transparent;\n  border-bottom-color:transparent;\n  border-left-color:white;\n}\n.introjs-arrow.bottom {\n  bottom: -10px;\n  border-top-color:white;\n  border-right-color:transparent;\n  border-bottom-color:transparent;\n  border-left-color:transparent;\n}\n.introjs-arrow.left {\n  left: -10px;\n  top: 10px;\n  border-top-color:transparent;\n  border-right-color:white;\n  border-bottom-color:transparent;\n  border-left-color:transparent;\n}\n\n.introjs-tooltip {\n  position: absolute;\n  padding: 10px;\n  background-color: white;\n  min-width: 200px;\n  border-radius: 3px;\n  box-shadow: 0 1px 10px rgba(0,0,0,.4);\n  -webkit-transition: opacity 0.1s ease-out;\n     -moz-transition: opacity 0.1s ease-out;\n      -ms-transition: opacity 0.1s ease-out;\n       -o-transition: opacity 0.1s ease-out;\n          transition: opacity 0.1s ease-out;\n}\n\n.introjs-tooltipbuttons {\n  text-align: right;\n}\n\n/* \n Buttons style by http://nicolasgallagher.com/lab/css3-github-buttons/ \n Changed by Afshin Mehrabani\n*/\n.introjs-button {\n  position: relative;\n  overflow: visible;\n  display: inline-block;\n  padding: 0.3em 0.8em;\n  border: 1px solid #d4d4d4;\n  margin: 0;\n  text-decoration: none;\n  text-shadow: 1px 1px 0 #fff;\n  font: 11px/normal sans-serif;\n  color: #333;\n  white-space: nowrap;\n  cursor: pointer;\n  outline: none;\n  background-color: #ececec;\n  background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#f4f4f4), to(#ececec));\n  background-image: -moz-linear-gradient(#f4f4f4, #ececec);\n  background-image: -o-linear-gradient(#f4f4f4, #ececec);\n  background-image: linear-gradient(#f4f4f4, #ececec);\n  -webkit-background-clip: padding;\n  -moz-background-clip: padding;\n  -o-background-clip: padding-box;\n  /*background-clip: padding-box;*/ /* commented out due to Opera 11.10 bug */\n  -webkit-border-radius: 0.2em;\n  -moz-border-radius: 0.2em;\n  border-radius: 0.2em;\n  /* IE hacks */\n  zoom: 1;\n  *display: inline;\n  margin-top: 10px;\n}\n\n.introjs-button:hover {\n  border-color: #bcbcbc;\n  text-decoration: none; \n  box-shadow: 0px 1px 1px #e3e3e3;\n}\n\n.introjs-button:focus,\n.introjs-button:active {\n  background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ececec), to(#f4f4f4));\n  background-image: -moz-linear-gradient(#ececec, #f4f4f4);\n  background-image: -o-linear-gradient(#ececec, #f4f4f4);\n  background-image: linear-gradient(#ececec, #f4f4f4);\n}\n\n/* overrides extra padding on button elements in Firefox */\n.introjs-button::-moz-focus-inner {\n  padding: 0;\n  border: 0;\n}\n\n.introjs-skipbutton {\n  margin-right: 5px;\n  color: #7a7a7a;\n}\n\n.introjs-prevbutton {\n  -webkit-border-radius: 0.2em 0 0 0.2em;\n  -moz-border-radius: 0.2em 0 0 0.2em;\n  border-radius: 0.2em 0 0 0.2em;\n  border-right: none;\n}\n\n.introjs-nextbutton {\n  -webkit-border-radius: 0 0.2em 0.2em 0;\n  -moz-border-radius: 0 0.2em 0.2em 0;\n  border-radius: 0 0.2em 0.2em 0;\n}\n\n.introjs-disabled, .introjs-disabled:hover {\n  color: #9a9a9a;\n  border-color: #d4d4d4;\n  box-shadow: none;\n  cursor: default;\n  background-color: #f4f4f4;\n  background-image: none;\n}"; s.id = "css-introjs"; document.head.appendChild(s);}, "data/views/document/_alt": function(exports, require, module) {module.exports = function(__obj) {
+return window.JSONImport['ro-RO'] = module.exports = item;}, "data/stylesheets/font-awesome": function(exports, require, module) {s = document.createElement('style'); s.innerHTML = "/*!\n *  Font Awesome 3.2.1\n *  the iconic font designed for Bootstrap\n *  ------------------------------------------------------------------------------\n *  The full suite of pictographic icons, examples, and documentation can be\n *  found at http://fontawesome.io.  Stay up to date on Twitter at\n *  http://twitter.com/fontawesome.\n *\n *  License\n *  ------------------------------------------------------------------------------\n *  - The Font Awesome font is licensed under SIL OFL 1.1 -\n *    http://scripts.sil.org/OFL\n *  - Font Awesome CSS, LESS, and SASS files are licensed under MIT License -\n *    http://opensource.org/licenses/mit-license.html\n *  - Font Awesome documentation licensed under CC BY 3.0 -\n *    http://creativecommons.org/licenses/by/3.0/\n *  - Attribution is no longer required in Font Awesome 3.0, but much appreciated:\n *    \"Font Awesome by Dave Gandy - http://fontawesome.io\"\n *\n *  Author - Dave Gandy\n *  ------------------------------------------------------------------------------\n *  Email: dave@fontawesome.io\n *  Twitter: http://twitter.com/davegandy\n *  Work: Lead Product Designer @ Kyruus - http://kyruus.com\n */\n/* FONT PATH\n * -------------------------- */\n@font-face {\n  font-family: 'FontAwesome';\n  src: url('<<INSERT FONTAWESOME EOT HERE>>');\n  src: url('<<INSERT FONTAWESOME EOT HERE>>?#iefix') format('embedded-opentype'), url('<<INSERT FONTAWESOME WOFF HERE>>') format('woff'), url('<<INSERT FONTAWESOME TTF HERE>>') format('truetype');\n  font-weight: normal;\n  font-style: normal;\n}\n/* FONT AWESOME CORE\n * -------------------------- */\n[class^=\"icon-\"],\n[class*=\" icon-\"] {\n  font-family: FontAwesome;\n  font-weight: normal;\n  font-style: normal;\n  text-decoration: inherit;\n  -webkit-font-smoothing: antialiased;\n  *margin-right: .3em;\n}\n[class^=\"icon-\"]:before,\n[class*=\" icon-\"]:before {\n  text-decoration: inherit;\n  display: inline-block;\n  speak: none;\n}\n/* makes the font 33% larger relative to the icon container */\n.icon-large:before {\n  vertical-align: -10%;\n  font-size: 1.3333333333333333em;\n}\n/* makes sure icons active on rollover in links */\na [class^=\"icon-\"],\na [class*=\" icon-\"] {\n  display: inline;\n}\n/* increased font size for icon-large */\n[class^=\"icon-\"].icon-fixed-width,\n[class*=\" icon-\"].icon-fixed-width {\n  display: inline-block;\n  width: 1.1428571428571428em;\n  text-align: right;\n  padding-right: 0.2857142857142857em;\n}\n[class^=\"icon-\"].icon-fixed-width.icon-large,\n[class*=\" icon-\"].icon-fixed-width.icon-large {\n  width: 1.4285714285714286em;\n}\n.icons-ul {\n  margin-left: 2.142857142857143em;\n  list-style-type: none;\n}\n.icons-ul > li {\n  position: relative;\n}\n.icons-ul .icon-li {\n  position: absolute;\n  left: -2.142857142857143em;\n  width: 2.142857142857143em;\n  text-align: center;\n  line-height: inherit;\n}\n[class^=\"icon-\"].hide,\n[class*=\" icon-\"].hide {\n  display: none;\n}\n.icon-muted {\n  color: #eeeeee;\n}\n.icon-light {\n  color: #ffffff;\n}\n.icon-dark {\n  color: #333333;\n}\n.icon-border {\n  border: solid 1px #eeeeee;\n  padding: .2em .25em .15em;\n  -webkit-border-radius: 3px;\n  -moz-border-radius: 3px;\n  border-radius: 3px;\n}\n.icon-2x {\n  font-size: 2em;\n}\n.icon-2x.icon-border {\n  border-width: 2px;\n  -webkit-border-radius: 4px;\n  -moz-border-radius: 4px;\n  border-radius: 4px;\n}\n.icon-3x {\n  font-size: 3em;\n}\n.icon-3x.icon-border {\n  border-width: 3px;\n  -webkit-border-radius: 5px;\n  -moz-border-radius: 5px;\n  border-radius: 5px;\n}\n.icon-4x {\n  font-size: 4em;\n}\n.icon-4x.icon-border {\n  border-width: 4px;\n  -webkit-border-radius: 6px;\n  -moz-border-radius: 6px;\n  border-radius: 6px;\n}\n.icon-5x {\n  font-size: 5em;\n}\n.icon-5x.icon-border {\n  border-width: 5px;\n  -webkit-border-radius: 7px;\n  -moz-border-radius: 7px;\n  border-radius: 7px;\n}\n.pull-right {\n  float: right;\n}\n.pull-left {\n  float: left;\n}\n[class^=\"icon-\"].pull-left,\n[class*=\" icon-\"].pull-left {\n  margin-right: .3em;\n}\n[class^=\"icon-\"].pull-right,\n[class*=\" icon-\"].pull-right {\n  margin-left: .3em;\n}\n/* BOOTSTRAP SPECIFIC CLASSES\n * -------------------------- */\n/* Bootstrap 2.0 sprites.less reset */\n[class^=\"icon-\"],\n[class*=\" icon-\"] {\n  display: inline;\n  width: auto;\n  height: auto;\n  line-height: normal;\n  vertical-align: baseline;\n  background-image: none;\n  background-position: 0% 0%;\n  background-repeat: repeat;\n  margin-top: 0;\n}\n/* more sprites.less reset */\n.icon-white,\n.nav-pills > .active > a > [class^=\"icon-\"],\n.nav-pills > .active > a > [class*=\" icon-\"],\n.nav-list > .active > a > [class^=\"icon-\"],\n.nav-list > .active > a > [class*=\" icon-\"],\n.navbar-inverse .nav > .active > a > [class^=\"icon-\"],\n.navbar-inverse .nav > .active > a > [class*=\" icon-\"],\n.dropdown-menu > li > a:hover > [class^=\"icon-\"],\n.dropdown-menu > li > a:hover > [class*=\" icon-\"],\n.dropdown-menu > .active > a > [class^=\"icon-\"],\n.dropdown-menu > .active > a > [class*=\" icon-\"],\n.dropdown-submenu:hover > a > [class^=\"icon-\"],\n.dropdown-submenu:hover > a > [class*=\" icon-\"] {\n  background-image: none;\n}\n/* keeps Bootstrap styles with and without icons the same */\n.btn [class^=\"icon-\"].icon-large,\n.nav [class^=\"icon-\"].icon-large,\n.btn [class*=\" icon-\"].icon-large,\n.nav [class*=\" icon-\"].icon-large {\n  line-height: .9em;\n}\n.btn [class^=\"icon-\"].icon-spin,\n.nav [class^=\"icon-\"].icon-spin,\n.btn [class*=\" icon-\"].icon-spin,\n.nav [class*=\" icon-\"].icon-spin {\n  display: inline-block;\n}\n.nav-tabs [class^=\"icon-\"],\n.nav-pills [class^=\"icon-\"],\n.nav-tabs [class*=\" icon-\"],\n.nav-pills [class*=\" icon-\"],\n.nav-tabs [class^=\"icon-\"].icon-large,\n.nav-pills [class^=\"icon-\"].icon-large,\n.nav-tabs [class*=\" icon-\"].icon-large,\n.nav-pills [class*=\" icon-\"].icon-large {\n  line-height: .9em;\n}\n.btn [class^=\"icon-\"].pull-left.icon-2x,\n.btn [class*=\" icon-\"].pull-left.icon-2x,\n.btn [class^=\"icon-\"].pull-right.icon-2x,\n.btn [class*=\" icon-\"].pull-right.icon-2x {\n  margin-top: .18em;\n}\n.btn [class^=\"icon-\"].icon-spin.icon-large,\n.btn [class*=\" icon-\"].icon-spin.icon-large {\n  line-height: .8em;\n}\n.btn.btn-small [class^=\"icon-\"].pull-left.icon-2x,\n.btn.btn-small [class*=\" icon-\"].pull-left.icon-2x,\n.btn.btn-small [class^=\"icon-\"].pull-right.icon-2x,\n.btn.btn-small [class*=\" icon-\"].pull-right.icon-2x {\n  margin-top: .25em;\n}\n.btn.btn-large [class^=\"icon-\"],\n.btn.btn-large [class*=\" icon-\"] {\n  margin-top: 0;\n}\n.btn.btn-large [class^=\"icon-\"].pull-left.icon-2x,\n.btn.btn-large [class*=\" icon-\"].pull-left.icon-2x,\n.btn.btn-large [class^=\"icon-\"].pull-right.icon-2x,\n.btn.btn-large [class*=\" icon-\"].pull-right.icon-2x {\n  margin-top: .05em;\n}\n.btn.btn-large [class^=\"icon-\"].pull-left.icon-2x,\n.btn.btn-large [class*=\" icon-\"].pull-left.icon-2x {\n  margin-right: .2em;\n}\n.btn.btn-large [class^=\"icon-\"].pull-right.icon-2x,\n.btn.btn-large [class*=\" icon-\"].pull-right.icon-2x {\n  margin-left: .2em;\n}\n/* Fixes alignment in nav lists */\n.nav-list [class^=\"icon-\"],\n.nav-list [class*=\" icon-\"] {\n  line-height: inherit;\n}\n/* EXTRAS\n * -------------------------- */\n/* Stacked and layered icon */\n.icon-stack {\n  position: relative;\n  display: inline-block;\n  width: 2em;\n  height: 2em;\n  line-height: 2em;\n  vertical-align: -35%;\n}\n.icon-stack [class^=\"icon-\"],\n.icon-stack [class*=\" icon-\"] {\n  display: block;\n  text-align: center;\n  position: absolute;\n  width: 100%;\n  height: 100%;\n  font-size: 1em;\n  line-height: inherit;\n  *line-height: 2em;\n}\n.icon-stack .icon-stack-base {\n  font-size: 2em;\n  *line-height: 1em;\n}\n/* Animated rotating icon */\n.icon-spin {\n  display: inline-block;\n  -moz-animation: spin 2s infinite linear;\n  -o-animation: spin 2s infinite linear;\n  -webkit-animation: spin 2s infinite linear;\n  animation: spin 2s infinite linear;\n}\n/* Prevent stack and spinners from being taken inline when inside a link */\na .icon-stack,\na .icon-spin {\n  display: inline-block;\n  text-decoration: none;\n}\n@-moz-keyframes spin {\n  0% {\n    -moz-transform: rotate(0deg);\n  }\n  100% {\n    -moz-transform: rotate(359deg);\n  }\n}\n@-webkit-keyframes spin {\n  0% {\n    -webkit-transform: rotate(0deg);\n  }\n  100% {\n    -webkit-transform: rotate(359deg);\n  }\n}\n@-o-keyframes spin {\n  0% {\n    -o-transform: rotate(0deg);\n  }\n  100% {\n    -o-transform: rotate(359deg);\n  }\n}\n@-ms-keyframes spin {\n  0% {\n    -ms-transform: rotate(0deg);\n  }\n  100% {\n    -ms-transform: rotate(359deg);\n  }\n}\n@keyframes spin {\n  0% {\n    transform: rotate(0deg);\n  }\n  100% {\n    transform: rotate(359deg);\n  }\n}\n/* Icon rotations and mirroring */\n.icon-rotate-90:before {\n  -webkit-transform: rotate(90deg);\n  -moz-transform: rotate(90deg);\n  -ms-transform: rotate(90deg);\n  -o-transform: rotate(90deg);\n  transform: rotate(90deg);\n  filter: progid:DXImageTransform.Microsoft.BasicImage(rotation=1);\n}\n.icon-rotate-180:before {\n  -webkit-transform: rotate(180deg);\n  -moz-transform: rotate(180deg);\n  -ms-transform: rotate(180deg);\n  -o-transform: rotate(180deg);\n  transform: rotate(180deg);\n  filter: progid:DXImageTransform.Microsoft.BasicImage(rotation=2);\n}\n.icon-rotate-270:before {\n  -webkit-transform: rotate(270deg);\n  -moz-transform: rotate(270deg);\n  -ms-transform: rotate(270deg);\n  -o-transform: rotate(270deg);\n  transform: rotate(270deg);\n  filter: progid:DXImageTransform.Microsoft.BasicImage(rotation=3);\n}\n.icon-flip-horizontal:before {\n  -webkit-transform: scale(-1, 1);\n  -moz-transform: scale(-1, 1);\n  -ms-transform: scale(-1, 1);\n  -o-transform: scale(-1, 1);\n  transform: scale(-1, 1);\n}\n.icon-flip-vertical:before {\n  -webkit-transform: scale(1, -1);\n  -moz-transform: scale(1, -1);\n  -ms-transform: scale(1, -1);\n  -o-transform: scale(1, -1);\n  transform: scale(1, -1);\n}\n/* ensure rotation occurs inside anchor tags */\na .icon-rotate-90:before,\na .icon-rotate-180:before,\na .icon-rotate-270:before,\na .icon-flip-horizontal:before,\na .icon-flip-vertical:before {\n  display: inline-block;\n}\n/* Font Awesome uses the Unicode Private Use Area (PUA) to ensure screen\n   readers do not read off random characters that represent icons */\n.icon-glass:before {\n  content: \"\\f000\";\n}\n.icon-music:before {\n  content: \"\\f001\";\n}\n.icon-search:before {\n  content: \"\\f002\";\n}\n.icon-envelope-alt:before {\n  content: \"\\f003\";\n}\n.icon-heart:before {\n  content: \"\\f004\";\n}\n.icon-star:before {\n  content: \"\\f005\";\n}\n.icon-star-empty:before {\n  content: \"\\f006\";\n}\n.icon-user:before {\n  content: \"\\f007\";\n}\n.icon-film:before {\n  content: \"\\f008\";\n}\n.icon-th-large:before {\n  content: \"\\f009\";\n}\n.icon-th:before {\n  content: \"\\f00a\";\n}\n.icon-th-list:before {\n  content: \"\\f00b\";\n}\n.icon-ok:before {\n  content: \"\\f00c\";\n}\n.icon-remove:before {\n  content: \"\\f00d\";\n}\n.icon-zoom-in:before {\n  content: \"\\f00e\";\n}\n.icon-zoom-out:before {\n  content: \"\\f010\";\n}\n.icon-power-off:before,\n.icon-off:before {\n  content: \"\\f011\";\n}\n.icon-signal:before {\n  content: \"\\f012\";\n}\n.icon-gear:before,\n.icon-cog:before {\n  content: \"\\f013\";\n}\n.icon-trash:before {\n  content: \"\\f014\";\n}\n.icon-home:before {\n  content: \"\\f015\";\n}\n.icon-file-alt:before {\n  content: \"\\f016\";\n}\n.icon-time:before {\n  content: \"\\f017\";\n}\n.icon-road:before {\n  content: \"\\f018\";\n}\n.icon-download-alt:before {\n  content: \"\\f019\";\n}\n.icon-download:before {\n  content: \"\\f01a\";\n}\n.icon-upload:before {\n  content: \"\\f01b\";\n}\n.icon-inbox:before {\n  content: \"\\f01c\";\n}\n.icon-play-circle:before {\n  content: \"\\f01d\";\n}\n.icon-rotate-right:before,\n.icon-repeat:before {\n  content: \"\\f01e\";\n}\n.icon-refresh:before {\n  content: \"\\f021\";\n}\n.icon-list-alt:before {\n  content: \"\\f022\";\n}\n.icon-lock:before {\n  content: \"\\f023\";\n}\n.icon-flag:before {\n  content: \"\\f024\";\n}\n.icon-headphones:before {\n  content: \"\\f025\";\n}\n.icon-volume-off:before {\n  content: \"\\f026\";\n}\n.icon-volume-down:before {\n  content: \"\\f027\";\n}\n.icon-volume-up:before {\n  content: \"\\f028\";\n}\n.icon-qrcode:before {\n  content: \"\\f029\";\n}\n.icon-barcode:before {\n  content: \"\\f02a\";\n}\n.icon-tag:before {\n  content: \"\\f02b\";\n}\n.icon-tags:before {\n  content: \"\\f02c\";\n}\n.icon-book:before {\n  content: \"\\f02d\";\n}\n.icon-bookmark:before {\n  content: \"\\f02e\";\n}\n.icon-print:before {\n  content: \"\\f02f\";\n}\n.icon-camera:before {\n  content: \"\\f030\";\n}\n.icon-font:before {\n  content: \"\\f031\";\n}\n.icon-bold:before {\n  content: \"\\f032\";\n}\n.icon-italic:before {\n  content: \"\\f033\";\n}\n.icon-text-height:before {\n  content: \"\\f034\";\n}\n.icon-text-width:before {\n  content: \"\\f035\";\n}\n.icon-align-left:before {\n  content: \"\\f036\";\n}\n.icon-align-center:before {\n  content: \"\\f037\";\n}\n.icon-align-right:before {\n  content: \"\\f038\";\n}\n.icon-align-justify:before {\n  content: \"\\f039\";\n}\n.icon-list:before {\n  content: \"\\f03a\";\n}\n.icon-indent-left:before {\n  content: \"\\f03b\";\n}\n.icon-indent-right:before {\n  content: \"\\f03c\";\n}\n.icon-facetime-video:before {\n  content: \"\\f03d\";\n}\n.icon-picture:before {\n  content: \"\\f03e\";\n}\n.icon-pencil:before {\n  content: \"\\f040\";\n}\n.icon-map-marker:before {\n  content: \"\\f041\";\n}\n.icon-adjust:before {\n  content: \"\\f042\";\n}\n.icon-tint:before {\n  content: \"\\f043\";\n}\n.icon-edit:before {\n  content: \"\\f044\";\n}\n.icon-share:before {\n  content: \"\\f045\";\n}\n.icon-check:before {\n  content: \"\\f046\";\n}\n.icon-move:before {\n  content: \"\\f047\";\n}\n.icon-step-backward:before {\n  content: \"\\f048\";\n}\n.icon-fast-backward:before {\n  content: \"\\f049\";\n}\n.icon-backward:before {\n  content: \"\\f04a\";\n}\n.icon-play:before {\n  content: \"\\f04b\";\n}\n.icon-pause:before {\n  content: \"\\f04c\";\n}\n.icon-stop:before {\n  content: \"\\f04d\";\n}\n.icon-forward:before {\n  content: \"\\f04e\";\n}\n.icon-fast-forward:before {\n  content: \"\\f050\";\n}\n.icon-step-forward:before {\n  content: \"\\f051\";\n}\n.icon-eject:before {\n  content: \"\\f052\";\n}\n.icon-chevron-left:before {\n  content: \"\\f053\";\n}\n.icon-chevron-right:before {\n  content: \"\\f054\";\n}\n.icon-plus-sign:before {\n  content: \"\\f055\";\n}\n.icon-minus-sign:before {\n  content: \"\\f056\";\n}\n.icon-remove-sign:before {\n  content: \"\\f057\";\n}\n.icon-ok-sign:before {\n  content: \"\\f058\";\n}\n.icon-question-sign:before {\n  content: \"\\f059\";\n}\n.icon-info-sign:before {\n  content: \"\\f05a\";\n}\n.icon-screenshot:before {\n  content: \"\\f05b\";\n}\n.icon-remove-circle:before {\n  content: \"\\f05c\";\n}\n.icon-ok-circle:before {\n  content: \"\\f05d\";\n}\n.icon-ban-circle:before {\n  content: \"\\f05e\";\n}\n.icon-arrow-left:before {\n  content: \"\\f060\";\n}\n.icon-arrow-right:before {\n  content: \"\\f061\";\n}\n.icon-arrow-up:before {\n  content: \"\\f062\";\n}\n.icon-arrow-down:before {\n  content: \"\\f063\";\n}\n.icon-mail-forward:before,\n.icon-share-alt:before {\n  content: \"\\f064\";\n}\n.icon-resize-full:before {\n  content: \"\\f065\";\n}\n.icon-resize-small:before {\n  content: \"\\f066\";\n}\n.icon-plus:before {\n  content: \"\\f067\";\n}\n.icon-minus:before {\n  content: \"\\f068\";\n}\n.icon-asterisk:before {\n  content: \"\\f069\";\n}\n.icon-exclamation-sign:before {\n  content: \"\\f06a\";\n}\n.icon-gift:before {\n  content: \"\\f06b\";\n}\n.icon-leaf:before {\n  content: \"\\f06c\";\n}\n.icon-fire:before {\n  content: \"\\f06d\";\n}\n.icon-eye-open:before {\n  content: \"\\f06e\";\n}\n.icon-eye-close:before {\n  content: \"\\f070\";\n}\n.icon-warning-sign:before {\n  content: \"\\f071\";\n}\n.icon-plane:before {\n  content: \"\\f072\";\n}\n.icon-calendar:before {\n  content: \"\\f073\";\n}\n.icon-random:before {\n  content: \"\\f074\";\n}\n.icon-comment:before {\n  content: \"\\f075\";\n}\n.icon-magnet:before {\n  content: \"\\f076\";\n}\n.icon-chevron-up:before {\n  content: \"\\f077\";\n}\n.icon-chevron-down:before {\n  content: \"\\f078\";\n}\n.icon-retweet:before {\n  content: \"\\f079\";\n}\n.icon-shopping-cart:before {\n  content: \"\\f07a\";\n}\n.icon-folder-close:before {\n  content: \"\\f07b\";\n}\n.icon-folder-open:before {\n  content: \"\\f07c\";\n}\n.icon-resize-vertical:before {\n  content: \"\\f07d\";\n}\n.icon-resize-horizontal:before {\n  content: \"\\f07e\";\n}\n.icon-bar-chart:before {\n  content: \"\\f080\";\n}\n.icon-twitter-sign:before {\n  content: \"\\f081\";\n}\n.icon-facebook-sign:before {\n  content: \"\\f082\";\n}\n.icon-camera-retro:before {\n  content: \"\\f083\";\n}\n.icon-key:before {\n  content: \"\\f084\";\n}\n.icon-gears:before,\n.icon-cogs:before {\n  content: \"\\f085\";\n}\n.icon-comments:before {\n  content: \"\\f086\";\n}\n.icon-thumbs-up-alt:before {\n  content: \"\\f087\";\n}\n.icon-thumbs-down-alt:before {\n  content: \"\\f088\";\n}\n.icon-star-half:before {\n  content: \"\\f089\";\n}\n.icon-heart-empty:before {\n  content: \"\\f08a\";\n}\n.icon-signout:before {\n  content: \"\\f08b\";\n}\n.icon-linkedin-sign:before {\n  content: \"\\f08c\";\n}\n.icon-pushpin:before {\n  content: \"\\f08d\";\n}\n.icon-external-link:before {\n  content: \"\\f08e\";\n}\n.icon-signin:before {\n  content: \"\\f090\";\n}\n.icon-trophy:before {\n  content: \"\\f091\";\n}\n.icon-github-sign:before {\n  content: \"\\f092\";\n}\n.icon-upload-alt:before {\n  content: \"\\f093\";\n}\n.icon-lemon:before {\n  content: \"\\f094\";\n}\n.icon-phone:before {\n  content: \"\\f095\";\n}\n.icon-unchecked:before,\n.icon-check-empty:before {\n  content: \"\\f096\";\n}\n.icon-bookmark-empty:before {\n  content: \"\\f097\";\n}\n.icon-phone-sign:before {\n  content: \"\\f098\";\n}\n.icon-twitter:before {\n  content: \"\\f099\";\n}\n.icon-facebook:before {\n  content: \"\\f09a\";\n}\n.icon-github:before {\n  content: \"\\f09b\";\n}\n.icon-unlock:before {\n  content: \"\\f09c\";\n}\n.icon-credit-card:before {\n  content: \"\\f09d\";\n}\n.icon-rss:before {\n  content: \"\\f09e\";\n}\n.icon-hdd:before {\n  content: \"\\f0a0\";\n}\n.icon-bullhorn:before {\n  content: \"\\f0a1\";\n}\n.icon-bell:before {\n  content: \"\\f0a2\";\n}\n.icon-certificate:before {\n  content: \"\\f0a3\";\n}\n.icon-hand-right:before {\n  content: \"\\f0a4\";\n}\n.icon-hand-left:before {\n  content: \"\\f0a5\";\n}\n.icon-hand-up:before {\n  content: \"\\f0a6\";\n}\n.icon-hand-down:before {\n  content: \"\\f0a7\";\n}\n.icon-circle-arrow-left:before {\n  content: \"\\f0a8\";\n}\n.icon-circle-arrow-right:before {\n  content: \"\\f0a9\";\n}\n.icon-circle-arrow-up:before {\n  content: \"\\f0aa\";\n}\n.icon-circle-arrow-down:before {\n  content: \"\\f0ab\";\n}\n.icon-globe:before {\n  content: \"\\f0ac\";\n}\n.icon-wrench:before {\n  content: \"\\f0ad\";\n}\n.icon-tasks:before {\n  content: \"\\f0ae\";\n}\n.icon-filter:before {\n  content: \"\\f0b0\";\n}\n.icon-briefcase:before {\n  content: \"\\f0b1\";\n}\n.icon-fullscreen:before {\n  content: \"\\f0b2\";\n}\n.icon-group:before {\n  content: \"\\f0c0\";\n}\n.icon-link:before {\n  content: \"\\f0c1\";\n}\n.icon-cloud:before {\n  content: \"\\f0c2\";\n}\n.icon-beaker:before {\n  content: \"\\f0c3\";\n}\n.icon-cut:before {\n  content: \"\\f0c4\";\n}\n.icon-copy:before {\n  content: \"\\f0c5\";\n}\n.icon-paperclip:before,\n.icon-paper-clip:before {\n  content: \"\\f0c6\";\n}\n.icon-save:before {\n  content: \"\\f0c7\";\n}\n.icon-sign-blank:before {\n  content: \"\\f0c8\";\n}\n.icon-reorder:before {\n  content: \"\\f0c9\";\n}\n.icon-list-ul:before {\n  content: \"\\f0ca\";\n}\n.icon-list-ol:before {\n  content: \"\\f0cb\";\n}\n.icon-strikethrough:before {\n  content: \"\\f0cc\";\n}\n.icon-underline:before {\n  content: \"\\f0cd\";\n}\n.icon-table:before {\n  content: \"\\f0ce\";\n}\n.icon-magic:before {\n  content: \"\\f0d0\";\n}\n.icon-truck:before {\n  content: \"\\f0d1\";\n}\n.icon-pinterest:before {\n  content: \"\\f0d2\";\n}\n.icon-pinterest-sign:before {\n  content: \"\\f0d3\";\n}\n.icon-google-plus-sign:before {\n  content: \"\\f0d4\";\n}\n.icon-google-plus:before {\n  content: \"\\f0d5\";\n}\n.icon-money:before {\n  content: \"\\f0d6\";\n}\n.icon-caret-down:before {\n  content: \"\\f0d7\";\n}\n.icon-caret-up:before {\n  content: \"\\f0d8\";\n}\n.icon-caret-left:before {\n  content: \"\\f0d9\";\n}\n.icon-caret-right:before {\n  content: \"\\f0da\";\n}\n.icon-columns:before {\n  content: \"\\f0db\";\n}\n.icon-sort:before {\n  content: \"\\f0dc\";\n}\n.icon-sort-down:before {\n  content: \"\\f0dd\";\n}\n.icon-sort-up:before {\n  content: \"\\f0de\";\n}\n.icon-envelope:before {\n  content: \"\\f0e0\";\n}\n.icon-linkedin:before {\n  content: \"\\f0e1\";\n}\n.icon-rotate-left:before,\n.icon-undo:before {\n  content: \"\\f0e2\";\n}\n.icon-legal:before {\n  content: \"\\f0e3\";\n}\n.icon-dashboard:before {\n  content: \"\\f0e4\";\n}\n.icon-comment-alt:before {\n  content: \"\\f0e5\";\n}\n.icon-comments-alt:before {\n  content: \"\\f0e6\";\n}\n.icon-bolt:before {\n  content: \"\\f0e7\";\n}\n.icon-sitemap:before {\n  content: \"\\f0e8\";\n}\n.icon-umbrella:before {\n  content: \"\\f0e9\";\n}\n.icon-paste:before {\n  content: \"\\f0ea\";\n}\n.icon-lightbulb:before {\n  content: \"\\f0eb\";\n}\n.icon-exchange:before {\n  content: \"\\f0ec\";\n}\n.icon-cloud-download:before {\n  content: \"\\f0ed\";\n}\n.icon-cloud-upload:before {\n  content: \"\\f0ee\";\n}\n.icon-user-md:before {\n  content: \"\\f0f0\";\n}\n.icon-stethoscope:before {\n  content: \"\\f0f1\";\n}\n.icon-suitcase:before {\n  content: \"\\f0f2\";\n}\n.icon-bell-alt:before {\n  content: \"\\f0f3\";\n}\n.icon-coffee:before {\n  content: \"\\f0f4\";\n}\n.icon-food:before {\n  content: \"\\f0f5\";\n}\n.icon-file-text-alt:before {\n  content: \"\\f0f6\";\n}\n.icon-building:before {\n  content: \"\\f0f7\";\n}\n.icon-hospital:before {\n  content: \"\\f0f8\";\n}\n.icon-ambulance:before {\n  content: \"\\f0f9\";\n}\n.icon-medkit:before {\n  content: \"\\f0fa\";\n}\n.icon-fighter-jet:before {\n  content: \"\\f0fb\";\n}\n.icon-beer:before {\n  content: \"\\f0fc\";\n}\n.icon-h-sign:before {\n  content: \"\\f0fd\";\n}\n.icon-plus-sign-alt:before {\n  content: \"\\f0fe\";\n}\n.icon-double-angle-left:before {\n  content: \"\\f100\";\n}\n.icon-double-angle-right:before {\n  content: \"\\f101\";\n}\n.icon-double-angle-up:before {\n  content: \"\\f102\";\n}\n.icon-double-angle-down:before {\n  content: \"\\f103\";\n}\n.icon-angle-left:before {\n  content: \"\\f104\";\n}\n.icon-angle-right:before {\n  content: \"\\f105\";\n}\n.icon-angle-up:before {\n  content: \"\\f106\";\n}\n.icon-angle-down:before {\n  content: \"\\f107\";\n}\n.icon-desktop:before {\n  content: \"\\f108\";\n}\n.icon-laptop:before {\n  content: \"\\f109\";\n}\n.icon-tablet:before {\n  content: \"\\f10a\";\n}\n.icon-mobile-phone:before {\n  content: \"\\f10b\";\n}\n.icon-circle-blank:before {\n  content: \"\\f10c\";\n}\n.icon-quote-left:before {\n  content: \"\\f10d\";\n}\n.icon-quote-right:before {\n  content: \"\\f10e\";\n}\n.icon-spinner:before {\n  content: \"\\f110\";\n}\n.icon-circle:before {\n  content: \"\\f111\";\n}\n.icon-mail-reply:before,\n.icon-reply:before {\n  content: \"\\f112\";\n}\n.icon-github-alt:before {\n  content: \"\\f113\";\n}\n.icon-folder-close-alt:before {\n  content: \"\\f114\";\n}\n.icon-folder-open-alt:before {\n  content: \"\\f115\";\n}\n.icon-expand-alt:before {\n  content: \"\\f116\";\n}\n.icon-collapse-alt:before {\n  content: \"\\f117\";\n}\n.icon-smile:before {\n  content: \"\\f118\";\n}\n.icon-frown:before {\n  content: \"\\f119\";\n}\n.icon-meh:before {\n  content: \"\\f11a\";\n}\n.icon-gamepad:before {\n  content: \"\\f11b\";\n}\n.icon-keyboard:before {\n  content: \"\\f11c\";\n}\n.icon-flag-alt:before {\n  content: \"\\f11d\";\n}\n.icon-flag-checkered:before {\n  content: \"\\f11e\";\n}\n.icon-terminal:before {\n  content: \"\\f120\";\n}\n.icon-code:before {\n  content: \"\\f121\";\n}\n.icon-reply-all:before {\n  content: \"\\f122\";\n}\n.icon-mail-reply-all:before {\n  content: \"\\f122\";\n}\n.icon-star-half-full:before,\n.icon-star-half-empty:before {\n  content: \"\\f123\";\n}\n.icon-location-arrow:before {\n  content: \"\\f124\";\n}\n.icon-crop:before {\n  content: \"\\f125\";\n}\n.icon-code-fork:before {\n  content: \"\\f126\";\n}\n.icon-unlink:before {\n  content: \"\\f127\";\n}\n.icon-question:before {\n  content: \"\\f128\";\n}\n.icon-info:before {\n  content: \"\\f129\";\n}\n.icon-exclamation:before {\n  content: \"\\f12a\";\n}\n.icon-superscript:before {\n  content: \"\\f12b\";\n}\n.icon-subscript:before {\n  content: \"\\f12c\";\n}\n.icon-eraser:before {\n  content: \"\\f12d\";\n}\n.icon-puzzle-piece:before {\n  content: \"\\f12e\";\n}\n.icon-microphone:before {\n  content: \"\\f130\";\n}\n.icon-microphone-off:before {\n  content: \"\\f131\";\n}\n.icon-shield:before {\n  content: \"\\f132\";\n}\n.icon-calendar-empty:before {\n  content: \"\\f133\";\n}\n.icon-fire-extinguisher:before {\n  content: \"\\f134\";\n}\n.icon-rocket:before {\n  content: \"\\f135\";\n}\n.icon-maxcdn:before {\n  content: \"\\f136\";\n}\n.icon-chevron-sign-left:before {\n  content: \"\\f137\";\n}\n.icon-chevron-sign-right:before {\n  content: \"\\f138\";\n}\n.icon-chevron-sign-up:before {\n  content: \"\\f139\";\n}\n.icon-chevron-sign-down:before {\n  content: \"\\f13a\";\n}\n.icon-html5:before {\n  content: \"\\f13b\";\n}\n.icon-css3:before {\n  content: \"\\f13c\";\n}\n.icon-anchor:before {\n  content: \"\\f13d\";\n}\n.icon-unlock-alt:before {\n  content: \"\\f13e\";\n}\n.icon-bullseye:before {\n  content: \"\\f140\";\n}\n.icon-ellipsis-horizontal:before {\n  content: \"\\f141\";\n}\n.icon-ellipsis-vertical:before {\n  content: \"\\f142\";\n}\n.icon-rss-sign:before {\n  content: \"\\f143\";\n}\n.icon-play-sign:before {\n  content: \"\\f144\";\n}\n.icon-ticket:before {\n  content: \"\\f145\";\n}\n.icon-minus-sign-alt:before {\n  content: \"\\f146\";\n}\n.icon-check-minus:before {\n  content: \"\\f147\";\n}\n.icon-level-up:before {\n  content: \"\\f148\";\n}\n.icon-level-down:before {\n  content: \"\\f149\";\n}\n.icon-check-sign:before {\n  content: \"\\f14a\";\n}\n.icon-edit-sign:before {\n  content: \"\\f14b\";\n}\n.icon-external-link-sign:before {\n  content: \"\\f14c\";\n}\n.icon-share-sign:before {\n  content: \"\\f14d\";\n}\n.icon-compass:before {\n  content: \"\\f14e\";\n}\n.icon-collapse:before {\n  content: \"\\f150\";\n}\n.icon-collapse-top:before {\n  content: \"\\f151\";\n}\n.icon-expand:before {\n  content: \"\\f152\";\n}\n.icon-euro:before,\n.icon-eur:before {\n  content: \"\\f153\";\n}\n.icon-gbp:before {\n  content: \"\\f154\";\n}\n.icon-dollar:before,\n.icon-usd:before {\n  content: \"\\f155\";\n}\n.icon-rupee:before,\n.icon-inr:before {\n  content: \"\\f156\";\n}\n.icon-yen:before,\n.icon-jpy:before {\n  content: \"\\f157\";\n}\n.icon-renminbi:before,\n.icon-cny:before {\n  content: \"\\f158\";\n}\n.icon-won:before,\n.icon-krw:before {\n  content: \"\\f159\";\n}\n.icon-bitcoin:before,\n.icon-btc:before {\n  content: \"\\f15a\";\n}\n.icon-file:before {\n  content: \"\\f15b\";\n}\n.icon-file-text:before {\n  content: \"\\f15c\";\n}\n.icon-sort-by-alphabet:before {\n  content: \"\\f15d\";\n}\n.icon-sort-by-alphabet-alt:before {\n  content: \"\\f15e\";\n}\n.icon-sort-by-attributes:before {\n  content: \"\\f160\";\n}\n.icon-sort-by-attributes-alt:before {\n  content: \"\\f161\";\n}\n.icon-sort-by-order:before {\n  content: \"\\f162\";\n}\n.icon-sort-by-order-alt:before {\n  content: \"\\f163\";\n}\n.icon-thumbs-up:before {\n  content: \"\\f164\";\n}\n.icon-thumbs-down:before {\n  content: \"\\f165\";\n}\n.icon-youtube-sign:before {\n  content: \"\\f166\";\n}\n.icon-youtube:before {\n  content: \"\\f167\";\n}\n.icon-xing:before {\n  content: \"\\f168\";\n}\n.icon-xing-sign:before {\n  content: \"\\f169\";\n}\n.icon-youtube-play:before {\n  content: \"\\f16a\";\n}\n.icon-dropbox:before {\n  content: \"\\f16b\";\n}\n.icon-stackexchange:before {\n  content: \"\\f16c\";\n}\n.icon-instagram:before {\n  content: \"\\f16d\";\n}\n.icon-flickr:before {\n  content: \"\\f16e\";\n}\n.icon-adn:before {\n  content: \"\\f170\";\n}\n.icon-bitbucket:before {\n  content: \"\\f171\";\n}\n.icon-bitbucket-sign:before {\n  content: \"\\f172\";\n}\n.icon-tumblr:before {\n  content: \"\\f173\";\n}\n.icon-tumblr-sign:before {\n  content: \"\\f174\";\n}\n.icon-long-arrow-down:before {\n  content: \"\\f175\";\n}\n.icon-long-arrow-up:before {\n  content: \"\\f176\";\n}\n.icon-long-arrow-left:before {\n  content: \"\\f177\";\n}\n.icon-long-arrow-right:before {\n  content: \"\\f178\";\n}\n.icon-apple:before {\n  content: \"\\f179\";\n}\n.icon-windows:before {\n  content: \"\\f17a\";\n}\n.icon-android:before {\n  content: \"\\f17b\";\n}\n.icon-linux:before {\n  content: \"\\f17c\";\n}\n.icon-dribbble:before {\n  content: \"\\f17d\";\n}\n.icon-skype:before {\n  content: \"\\f17e\";\n}\n.icon-foursquare:before {\n  content: \"\\f180\";\n}\n.icon-trello:before {\n  content: \"\\f181\";\n}\n.icon-female:before {\n  content: \"\\f182\";\n}\n.icon-male:before {\n  content: \"\\f183\";\n}\n.icon-gittip:before {\n  content: \"\\f184\";\n}\n.icon-sun:before {\n  content: \"\\f185\";\n}\n.icon-moon:before {\n  content: \"\\f186\";\n}\n.icon-archive:before {\n  content: \"\\f187\";\n}\n.icon-bug:before {\n  content: \"\\f188\";\n}\n.icon-vk:before {\n  content: \"\\f189\";\n}\n.icon-weibo:before {\n  content: \"\\f18a\";\n}\n.icon-renren:before {\n  content: \"\\f18b\";\n}\n"; s.id = "css-font-awesome"; document.head.appendChild(s);}, "data/stylesheets/introjs": function(exports, require, module) {s = document.createElement('style'); s.innerHTML = ".introjs-overlay {\n  position: absolute;\n  z-index: 999999;\n  background-color: #000;\n  opacity: 0;\n  -webkit-transition: all 0.3s ease-out;\n     -moz-transition: all 0.3s ease-out;\n      -ms-transition: all 0.3s ease-out;\n       -o-transition: all 0.3s ease-out;\n          transition: all 0.3s ease-out;\n}\n\n.introjs-showElement {\n  z-index: 9999999;\n}\n\n.introjs-relativePosition {\n  position: relative;\n}\n\n.introjs-helperLayer {\n  position: absolute;\n  z-index: 9999998;\n  background-color: rgba(255,255,255,.9);\n  border: 1px solid rgba(0,0,0,.5);\n  border-radius: 4px;\n  box-shadow: 0 2px 15px rgba(0,0,0,.4);\n  -webkit-transition: all 0.3s ease-out;\n     -moz-transition: all 0.3s ease-out;\n      -ms-transition: all 0.3s ease-out;\n       -o-transition: all 0.3s ease-out;\n          transition: all 0.3s ease-out;\n}\n\n.introjs-helperNumberLayer {\n  position: absolute;\n  top: -16px;\n  left: -16px;\n  z-index: 9999999999 !important;\n  padding: 2px;\n  font-family: Arial, verdana, tahoma;\n  font-size: 13px;\n  font-weight: bold;\n  color: white;\n  text-align: center;\n  text-shadow: 1px 1px 1px rgba(0,0,0,.3);\n  background: #ff3019; /* Old browsers */\n  background: -webkit-linear-gradient(top, #ff3019 0%, #cf0404 100%); /* Chrome10+,Safari5.1+ */\n  background: -webkit-gradient(linear, left top, left bottom, color-stop(0%, #ff3019), color-stop(100%, #cf0404)); /* Chrome,Safari4+ */\n  background:    -moz-linear-gradient(top, #ff3019 0%, #cf0404 100%); /* FF3.6+ */\n  background:     -ms-linear-gradient(top, #ff3019 0%, #cf0404 100%); /* IE10+ */\n  background:      -o-linear-gradient(top, #ff3019 0%, #cf0404 100%); /* Opera 11.10+ */\n  background:         linear-gradient(to bottom, #ff3019 0%, #cf0404 100%);  /* W3C */\n  width: 20px;\n  height:20px;\n  line-height: 20px;\n  border: 3px solid white;\n  border-radius: 50%;\n  filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#ff3019', endColorstr='#cf0404', GradientType=0); /* IE6-9 */ \n  filter: progid:DXImageTransform.Microsoft.Shadow(direction=135, strength=2, color=ff0000); /* IE10 text shadows */\n  box-shadow: 0 2px 5px rgba(0,0,0,.4);\n}\n\n.introjs-arrow {\n  border: 5px solid white;\n  content:'';\n  position: absolute;\n}\n.introjs-arrow.top {\n  top: -10px;\n  border-top-color:transparent;\n  border-right-color:transparent;\n  border-bottom-color:white;\n  border-left-color:transparent;\n}\n.introjs-arrow.right {\n  right: -10px;\n  top: 10px;\n  border-top-color:transparent;\n  border-right-color:transparent;\n  border-bottom-color:transparent;\n  border-left-color:white;\n}\n.introjs-arrow.bottom {\n  bottom: -10px;\n  border-top-color:white;\n  border-right-color:transparent;\n  border-bottom-color:transparent;\n  border-left-color:transparent;\n}\n.introjs-arrow.left {\n  left: -10px;\n  top: 10px;\n  border-top-color:transparent;\n  border-right-color:white;\n  border-bottom-color:transparent;\n  border-left-color:transparent;\n}\n\n.introjs-tooltip {\n  position: absolute;\n  padding: 10px;\n  background-color: white;\n  min-width: 200px;\n  border-radius: 3px;\n  box-shadow: 0 1px 10px rgba(0,0,0,.4);\n  -webkit-transition: opacity 0.1s ease-out;\n     -moz-transition: opacity 0.1s ease-out;\n      -ms-transition: opacity 0.1s ease-out;\n       -o-transition: opacity 0.1s ease-out;\n          transition: opacity 0.1s ease-out;\n}\n\n.introjs-tooltipbuttons {\n  text-align: right;\n}\n\n/* \n Buttons style by http://nicolasgallagher.com/lab/css3-github-buttons/ \n Changed by Afshin Mehrabani\n*/\n.introjs-button {\n  position: relative;\n  overflow: visible;\n  display: inline-block;\n  padding: 0.3em 0.8em;\n  border: 1px solid #d4d4d4;\n  margin: 0;\n  text-decoration: none;\n  text-shadow: 1px 1px 0 #fff;\n  font: 11px/normal sans-serif;\n  color: #333;\n  white-space: nowrap;\n  cursor: pointer;\n  outline: none;\n  background-color: #ececec;\n  background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#f4f4f4), to(#ececec));\n  background-image: -moz-linear-gradient(#f4f4f4, #ececec);\n  background-image: -o-linear-gradient(#f4f4f4, #ececec);\n  background-image: linear-gradient(#f4f4f4, #ececec);\n  -webkit-background-clip: padding;\n  -moz-background-clip: padding;\n  -o-background-clip: padding-box;\n  /*background-clip: padding-box;*/ /* commented out due to Opera 11.10 bug */\n  -webkit-border-radius: 0.2em;\n  -moz-border-radius: 0.2em;\n  border-radius: 0.2em;\n  /* IE hacks */\n  zoom: 1;\n  *display: inline;\n  margin-top: 10px;\n}\n\n.introjs-button:hover {\n  border-color: #bcbcbc;\n  text-decoration: none; \n  box-shadow: 0px 1px 1px #e3e3e3;\n}\n\n.introjs-button:focus,\n.introjs-button:active {\n  background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ececec), to(#f4f4f4));\n  background-image: -moz-linear-gradient(#ececec, #f4f4f4);\n  background-image: -o-linear-gradient(#ececec, #f4f4f4);\n  background-image: linear-gradient(#ececec, #f4f4f4);\n}\n\n/* overrides extra padding on button elements in Firefox */\n.introjs-button::-moz-focus-inner {\n  padding: 0;\n  border: 0;\n}\n\n.introjs-skipbutton {\n  margin-right: 5px;\n  color: #7a7a7a;\n}\n\n.introjs-prevbutton {\n  -webkit-border-radius: 0.2em 0 0 0.2em;\n  -moz-border-radius: 0.2em 0 0 0.2em;\n  border-radius: 0.2em 0 0 0.2em;\n  border-right: none;\n}\n\n.introjs-nextbutton {\n  -webkit-border-radius: 0 0.2em 0.2em 0;\n  -moz-border-radius: 0 0.2em 0.2em 0;\n  border-radius: 0 0.2em 0.2em 0;\n}\n\n.introjs-disabled, .introjs-disabled:hover {\n  color: #9a9a9a;\n  border-color: #d4d4d4;\n  box-shadow: none;\n  cursor: default;\n  background-color: #f4f4f4;\n  background-image: none;\n}"; s.id = "css-introjs"; document.head.appendChild(s);}, "data/views/menu": function(exports, require, module) {module.exports = function(__obj) {
   if (!__obj) __obj = {};
   var __out = [], __capture = function(callback) {
     var out = __out, result;
@@ -13396,22 +14283,14 @@ return window.JSONImport['ro-RO'] = module.exports = item;}, "data/stylesheets/f
   }
   (function() {
     (function() {
-      __out.push('<aside id="secondary" ng-class="{false: \'inactive\', true: \'active\'}[node.$viewmore]">\n\t<label for="relation{{node.$index}}" id="relationplaceholder">\n\t\t<span ');
-    
-      __out.push(__sanitize(_T("Relation between this node and the previous.")));
-    
-      __out.push('></span>\n\t\t<div>\n\t\t\t<input type="text" ng-model="node.relation" ng-change="replicate(node, \'relation\')" id="relation{{node.$index}}">\n\t\t</div>\n\t</label>\n\t<label for="node{{node.$index}}" id="noteplacehoder">\n\t\t<span ');
-    
-      __out.push(__sanitize(_T("Notes associated")));
-    
-      __out.push('></span>\n\t\t<div>\n\t\t\t<textarea id="node{{node.$index}}" ng-model="node.note" ng-change="replicate(node, \'note\')"></textarea>\n\t\t</div>\n\t</label>\n</aside>');
+      __out.push('<nav id="itmenuwindow">\n\t<li id="scroll-average"><span></span>% Average Scroll</li>\n\t<li id="click-heat">Click Heatmap</li>\n\t<li id="move-heat">Move Heatmap</li>\n\t<li id="hover-heat">Hover Heatmap</li>\n\t<li id="combined-heat">Combined Heatmap</li>\n\t<li id="remove-heat">Remove Heatmap</li>\n</nav>');
     
     }).call(this);
     
   }).call(__obj);
   __obj.safe = __objSafe, __obj.escape = __escape;
   return __out.join('');
-}}, "data/views/document/_main": function(exports, require, module) {module.exports = function(__obj) {
+}}, "data/views/modal": function(exports, require, module) {module.exports = function(__obj) {
   if (!__obj) __obj = {};
   var __out = [], __capture = function(callback) {
     var out = __out, result;
@@ -13450,26 +14329,14 @@ return window.JSONImport['ro-RO'] = module.exports = item;}, "data/stylesheets/f
   }
   (function() {
     (function() {
-      __out.push('<aside id="primary">\n\t<nav>\n\t');
-    
-      __out.push(DepMan.render(["document", "_misc"]));
-    
-      __out.push('\n\t</nav>\t\t\t\t\n\t<label for="text{{node.$index}}">\n\t\t<span ');
-    
-      __out.push(__sanitize(_T("Node Text")));
-    
-      __out.push('></span>\n\t\t<div>\n\t\t\t<input type="text" ng-model="node.text" ng-change="replicate(node, \'text\')"/>\n\t\t</div>\n\t</label>\n\t<nav id="primary">\n\t');
-    
-      __out.push(DepMan.render(["document", "_nav"]));
-    
-      __out.push('\n\t</nav>\n</aside>\t\t\t');
+      __out.push('<section ng-controller=\'Modal\' id=\'modal-window\'>\n\t<section>\n\t<header id="modal-title-area"></header>\n\t  <nav>\n\t\t<li id="modal-close-button"><i class="icon-remove"></i></li>\n\t\t<li id="modal-fullscren-button"><i class="icon-fullscreen"></i></li>\n\t  </nav>\n\t  <article id="modal-content-area"></article>\n\t</section>\n</section>\n');
     
     }).call(this);
     
   }).call(__obj);
   __obj.safe = __objSafe, __obj.escape = __escape;
   return __out.join('');
-}}, "data/views/document/_misc": function(exports, require, module) {module.exports = function(__obj) {
+}}, "data/views/unlock": function(exports, require, module) {module.exports = function(__obj) {
   if (!__obj) __obj = {};
   var __out = [], __capture = function(callback) {
     var out = __out, result;
@@ -13508,893 +14375,7 @@ return window.JSONImport['ro-RO'] = module.exports = item;}, "data/stylesheets/f
   }
   (function() {
     (function() {
-      __out.push('<label for="folding{{node.$index}}" ng-class="{\'determinate\': \'active\', \'indeterminate\': \'active\', \'checked\': \'inactive\', \'unchecked\': \'inactive\'}[node.status]">\n\t<input type="checkbox" id="folding{{node.$index}}" ng-model="node.$folded" ng-change="refresh(node)"/>\n\t<i ng-class="{true: \'icon-chevron-right\', false: \'icon-chevron-down\'}[node.$folded]"></i>\n</label>\n<label for="status{{node.$index}}">\n\t<input type="checkbox" id="status{{node.$index}}" ng-model="node.$status" ng-change="changeStatus(node)">\n\t<i ng-class="{\'checked\': \'icon-check\', \'unchecked\': \'icon-check-empty\', \'determinate\': \'icon-circle\', \'indeterminate\': \'icon-adjust\'}[node.status]"></i>\n</label>');
-    
-    }).call(this);
-    
-  }).call(__obj);
-  __obj.safe = __objSafe, __obj.escape = __escape;
-  return __out.join('');
-}}, "data/views/document/_nav": function(exports, require, module) {module.exports = function(__obj) {
-  if (!__obj) __obj = {};
-  var __out = [], __capture = function(callback) {
-    var out = __out, result;
-    __out = [];
-    callback.call(this);
-    result = __out.join('');
-    __out = out;
-    return __safe(result);
-  }, __sanitize = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else if (typeof value !== 'undefined' && value != null) {
-      return __escape(value);
-    } else {
-      return '';
-    }
-  }, __safe, __objSafe = __obj.safe, __escape = __obj.escape;
-  __safe = __obj.safe = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else {
-      if (!(typeof value !== 'undefined' && value != null)) value = '';
-      var result = new String(value);
-      result.ecoSafe = true;
-      return result;
-    }
-  };
-  if (!__escape) {
-    __escape = __obj.escape = function(value) {
-      return ('' + value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    };
-  }
-  (function() {
-    (function() {
-      __out.push('<li ng-click="add(node)" class="add button"><i class="icon-plus"></i></li>\n<li ng-click="remove(node)" class="remove button"><i class="icon-remove"></i></li>\n<li ng-click="modalEdit(node)" class="modal button"><i class="icon-gear"></i></li>\n<li class="button showhide">\n\t<label for="showhide{{node.$index}}"><input type="checkbox" ng-model="node.$viewmore" id="showhide{{node.$index}}"><i ng-class="{true: \'icon-eye-open\', false: \'icon-eye-close\'}[node.$viewmore]"></i></label>\n</li>');
-    
-    }).call(this);
-    
-  }).call(__obj);
-  __obj.safe = __objSafe, __obj.escape = __escape;
-  return __out.join('');
-}}, "data/views/document/editform": function(exports, require, module) {module.exports = function(__obj) {
-  if (!__obj) __obj = {};
-  var __out = [], __capture = function(callback) {
-    var out = __out, result;
-    __out = [];
-    callback.call(this);
-    result = __out.join('');
-    __out = out;
-    return __safe(result);
-  }, __sanitize = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else if (typeof value !== 'undefined' && value != null) {
-      return __escape(value);
-    } else {
-      return '';
-    }
-  }, __safe, __objSafe = __obj.safe, __escape = __obj.escape;
-  __safe = __obj.safe = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else {
-      if (!(typeof value !== 'undefined' && value != null)) value = '';
-      var result = new String(value);
-      result.ecoSafe = true;
-      return result;
-    }
-  };
-  if (!__escape) {
-    __escape = __obj.escape = function(value) {
-      return ('' + value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    };
-  }
-  (function() {
-    (function() {
-      __out.push('<div id="editform">\n\t<div id="textcontainer"><label for="text" ');
-    
-      __out.push(__sanitize(_T("The text of the node")));
-    
-      __out.push('></label><input type="text" id="text"></div>\n\t<div id="checkcontainer"><label for="checked" ');
-    
-      __out.push(__sanitize(_T("Is this node checked?")));
-    
-      __out.push('></label><input type="checkbox"  id="checked"></div>\n\t<div id="foldcontainer"><label for="folded" ');
-    
-      __out.push(__sanitize(_T("Is this node folded?")));
-    
-      __out.push('></label><input type="checkbox" id="folded"></div>\n\t<div id="relationcontainer"><label for="relation" ');
-    
-      __out.push(__sanitize(_T("Relation with its parent")));
-    
-      __out.push('></label><input type="text" id="relation"></div>\n\t<div id="notecontainer"><label for="note" ');
-    
-      __out.push(__sanitize(_T("Notes attached")));
-    
-      __out.push('></label><textarea id="note"></textarea></div>\n\t<br>\n\t<div id="buttoncontainer">\n\t\t<input type="button" id="addnode" ');
-    
-      __out.push(__sanitize(_T("Add a new node", "value")));
-    
-      __out.push('>\n\t\t<input type="button" id="removenode" ');
-    
-      __out.push(__sanitize(_T("Remove this node", "value")));
-    
-      __out.push('>\n\t</div>\n\t<br>\n</div>');
-    
-    }).call(this);
-    
-  }).call(__obj);
-  __obj.safe = __objSafe, __obj.escape = __escape;
-  return __out.join('');
-}}, "data/views/document/index": function(exports, require, module) {module.exports = function(__obj) {
-  if (!__obj) __obj = {};
-  var __out = [], __capture = function(callback) {
-    var out = __out, result;
-    __out = [];
-    callback.call(this);
-    result = __out.join('');
-    __out = out;
-    return __safe(result);
-  }, __sanitize = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else if (typeof value !== 'undefined' && value != null) {
-      return __escape(value);
-    } else {
-      return '';
-    }
-  }, __safe, __objSafe = __obj.safe, __escape = __obj.escape;
-  __safe = __obj.safe = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else {
-      if (!(typeof value !== 'undefined' && value != null)) value = '';
-      var result = new String(value);
-      result.ecoSafe = true;
-      return result;
-    }
-  };
-  if (!__escape) {
-    __escape = __obj.escape = function(value) {
-      return ('' + value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    };
-  }
-  (function() {
-    (function() {
-      __out.push('<section ng-controller="Document" ng-class="{0: \'sidebarclosed\', 1: \'sidebaropen\'}[runtime.props[\'sidebar-state\']]">\n\t<header>\n\t\t{{activeDocument.title}} \n\t\t<nav>\n\t\t\t<li ng-click="runtime.set(\'document-state\', 1)" ng-class="{0: \'inactive\', 1: \'active\'}[runtime.props[\'document-state\']]"><i class="icon-sitemap"></i></li>\n\t\t\t<li ng-click="runtime.set(\'document-state\', 0)" ng-class="{0: \'active\', 1: \'inactive\'}[runtime.props[\'document-state\']]"><i class="icon-list"></i></li>\n\t\t</nav>\n\t</header>\n\t<section id="outline" ng-class="{1: \'inactive\', 0: \'active\'}[runtime.props[\'document-state\']]">\n\t\t<article ng-repeat="node in activeDocument.indexes" ng-class="{true: \'inactive\', false: \'active\'}[node.$hidden]" ng-style="getStyles(node)">\n\t\t \t');
-    
-      __out.push(DepMan.render(["document", "_main"]));
-    
-      __out.push('\n\t\t \t');
-    
-      __out.push(DepMan.render(["document", "_alt"]));
-    
-      __out.push('\n\t\t</article>\n\t\t<aside ng-click="addRoot()"><i class="icon-plus"></i></aside>\n\t</section>\n\t<section id="mindmap" ng-class="{0: \'inactive\', 1: \'active\'}[runtime.props[\'document-state\']]">\n\t\t<canvas></canvas>\n\t</section>\n</section>');
-    
-    }).call(this);
-    
-  }).call(__obj);
-  __obj.safe = __objSafe, __obj.escape = __escape;
-  return __out.join('');
-}}, "data/views/document/list": function(exports, require, module) {module.exports = function(__obj) {
-  if (!__obj) __obj = {};
-  var __out = [], __capture = function(callback) {
-    var out = __out, result;
-    __out = [];
-    callback.call(this);
-    result = __out.join('');
-    __out = out;
-    return __safe(result);
-  }, __sanitize = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else if (typeof value !== 'undefined' && value != null) {
-      return __escape(value);
-    } else {
-      return '';
-    }
-  }, __safe, __objSafe = __obj.safe, __escape = __obj.escape;
-  __safe = __obj.safe = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else {
-      if (!(typeof value !== 'undefined' && value != null)) value = '';
-      var result = new String(value);
-      result.ecoSafe = true;
-      return result;
-    }
-  };
-  if (!__escape) {
-    __escape = __obj.escape = function(value) {
-      return ('' + value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    };
-  }
-  (function() {
-    (function() {
-      __out.push('<section ng-controller="DocumentList">\n\t<nav>\n\t\t<div class="slider">\n\t\t\t<li ng-click="addDocument()"><i class="icon-plus"></i></li>\n\t\t\t<li ng-click="deleteDocument()"><i class="icon-remove"></i></li>\n\t\t\t<li ng-click="saveDocument()"><i class="icon-save"></i></li>\n\t\t\t<li ng-click="downloadDocument()"><i class="icon-cloud-download"></i></li>\n\t\t\t<li ng-click="uploadDocument()"><i class="icon-cloud-upload"></i></li>\n\t\t\t<li ng-click="duplicateDocument()"><i class="icon-copy"></i></li>\n\t\t</div>\n\t</nav>\n\t<article ng-repeat="(id, document) in models._reccords">\n\t\t<input type="text" ng-model="document.title" ngc-focus="switch(id)" ng-change="replicate()" />\n\t\t<small>{{id}}</small>\n\t</article>\n</section>\n');
-    
-    }).call(this);
-    
-  }).call(__obj);
-  __obj.safe = __objSafe, __obj.escape = __escape;
-  return __out.join('');
-}}, "data/views/help/tab1": function(exports, require, module) {module.exports = function(__obj) {
-  if (!__obj) __obj = {};
-  var __out = [], __capture = function(callback) {
-    var out = __out, result;
-    __out = [];
-    callback.call(this);
-    result = __out.join('');
-    __out = out;
-    return __safe(result);
-  }, __sanitize = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else if (typeof value !== 'undefined' && value != null) {
-      return __escape(value);
-    } else {
-      return '';
-    }
-  }, __safe, __objSafe = __obj.safe, __escape = __obj.escape;
-  __safe = __obj.safe = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else {
-      if (!(typeof value !== 'undefined' && value != null)) value = '';
-      var result = new String(value);
-      result.ecoSafe = true;
-      return result;
-    }
-  };
-  if (!__escape) {
-    __escape = __obj.escape = function(value) {
-      return ('' + value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    };
-  }
-  (function() {
-    (function() {
-      __out.push('<p>To start using the application, click on the eye button (<span class=\'key\'><i class="icon-eye-open"></i></span>) on the top left to open up the sidebar or use the keyboard shortcuts (<span class="key">⌘-[1-4]</span> / <span class="key">Control-[1-4]</span>) to access the individual tabs.</p>\n<p>The application supports two ways of viewing and editing the data. To move between them use the buttons on the upper right side of the application (<span class="key"><i class="icon-sitemap"></i></span> and <span class="key"><i class="icon-list"></i></span>) </p>');
-    
-    }).call(this);
-    
-  }).call(__obj);
-  __obj.safe = __objSafe, __obj.escape = __escape;
-  return __out.join('');
-}}, "data/views/help/tab2": function(exports, require, module) {module.exports = function(__obj) {
-  if (!__obj) __obj = {};
-  var __out = [], __capture = function(callback) {
-    var out = __out, result;
-    __out = [];
-    callback.call(this);
-    result = __out.join('');
-    __out = out;
-    return __safe(result);
-  }, __sanitize = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else if (typeof value !== 'undefined' && value != null) {
-      return __escape(value);
-    } else {
-      return '';
-    }
-  }, __safe, __objSafe = __obj.safe, __escape = __obj.escape;
-  __safe = __obj.safe = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else {
-      if (!(typeof value !== 'undefined' && value != null)) value = '';
-      var result = new String(value);
-      result.ecoSafe = true;
-      return result;
-    }
-  };
-  if (!__escape) {
-    __escape = __obj.escape = function(value) {
-      return ('' + value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    };
-  }
-  (function() {
-    (function() {
-      __out.push('<p>With the sidebar window you can change the tabs using the keyboard shortcuts using the keyboards explained earlier, or with the four tabs on the bottom (<span class="key"><i class="icon-list"></i></span>, <span class="key"><i class="icon-signal"></i></span>, <span class="key"><i class="icon-gear"></i></span>, <span class="key"><i class="icon-code"></i></span>).</p>');
-    
-    }).call(this);
-    
-  }).call(__obj);
-  __obj.safe = __objSafe, __obj.escape = __escape;
-  return __out.join('');
-}}, "data/views/help/tab3": function(exports, require, module) {module.exports = function(__obj) {
-  if (!__obj) __obj = {};
-  var __out = [], __capture = function(callback) {
-    var out = __out, result;
-    __out = [];
-    callback.call(this);
-    result = __out.join('');
-    __out = out;
-    return __safe(result);
-  }, __sanitize = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else if (typeof value !== 'undefined' && value != null) {
-      return __escape(value);
-    } else {
-      return '';
-    }
-  }, __safe, __objSafe = __obj.safe, __escape = __obj.escape;
-  __safe = __obj.safe = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else {
-      if (!(typeof value !== 'undefined' && value != null)) value = '';
-      var result = new String(value);
-      result.ecoSafe = true;
-      return result;
-    }
-  };
-  if (!__escape) {
-    __escape = __obj.escape = function(value) {
-      return ('' + value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    };
-  }
-  (function() {
-    (function() {
-      __out.push('<p>To connect to another client, access the server tab of the sidebar, copy your clientID (or scan the QR code) and give that code to the person that wants to connect to you. Then that person will input that code into the second input of the page, and then he will receive the data you are already editing.</p>\n<p>From that moment on, untill you reconnect, you two will be linked together. Any action you take will be replicated between you and your connection.</p>');
-    
-    }).call(this);
-    
-  }).call(__obj);
-  __obj.safe = __objSafe, __obj.escape = __escape;
-  return __out.join('');
-}}, "data/views/loading/index": function(exports, require, module) {module.exports = function(__obj) {
-  if (!__obj) __obj = {};
-  var __out = [], __capture = function(callback) {
-    var out = __out, result;
-    __out = [];
-    callback.call(this);
-    result = __out.join('');
-    __out = out;
-    return __safe(result);
-  }, __sanitize = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else if (typeof value !== 'undefined' && value != null) {
-      return __escape(value);
-    } else {
-      return '';
-    }
-  }, __safe, __objSafe = __obj.safe, __escape = __obj.escape;
-  __safe = __obj.safe = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else {
-      if (!(typeof value !== 'undefined' && value != null)) value = '';
-      var result = new String(value);
-      result.ecoSafe = true;
-      return result;
-    }
-  };
-  if (!__escape) {
-    __escape = __obj.escape = function(value) {
-      return ('' + value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    };
-  }
-  (function() {
-    (function() {
-      __out.push('<section id="loadingscreen">\n\t<section></section>\n\t<aside data-location=\'left\'></aside>\n\t<aside data-location=\'right\'></aside>\n\t<article>\n\t\t<div><p>Revelati</p></div>\n\t\t<span></span>\n\t\t<div><p>n</p></div>\n\t\t<p><span id="loadingmessage"></span></p>\n\t</article>\n</section>\n');
-    
-    }).call(this);
-    
-  }).call(__obj);
-  __obj.safe = __objSafe, __obj.escape = __escape;
-  return __out.join('');
-}}, "data/views/pages/help": function(exports, require, module) {module.exports = function(__obj) {
-  if (!__obj) __obj = {};
-  var __out = [], __capture = function(callback) {
-    var out = __out, result;
-    __out = [];
-    callback.call(this);
-    result = __out.join('');
-    __out = out;
-    return __safe(result);
-  }, __sanitize = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else if (typeof value !== 'undefined' && value != null) {
-      return __escape(value);
-    } else {
-      return '';
-    }
-  }, __safe, __objSafe = __obj.safe, __escape = __obj.escape;
-  __safe = __obj.safe = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else {
-      if (!(typeof value !== 'undefined' && value != null)) value = '';
-      var result = new String(value);
-      result.ecoSafe = true;
-      return result;
-    }
-  };
-  if (!__escape) {
-    __escape = __obj.escape = function(value) {
-      return ('' + value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    };
-  }
-  (function() {
-    (function() {
-      __out.push('<section class="help wrapper" ng-controller="Help" ng-click="verifyState($event)">\n\t<aside class="left" ng-click="changeState(-1)"></aside>\n\t<section>\n\t\t<article ng-repeat="doc in articles" ng-class="{true: \'active\', false: \'\'}[$index == runtime.props[\'help-state\']]" ng-bind-html-unsafe="doc">\n\t\t</article>\n\t</section>\n\t<aside class="right" ng-click="changeState(1)"></aside>\n\t<nav>\n\t\t<li ng-repeat="article in articles" ng-click="runtime.set(\'help-state\', $index)" ng-class="{true: \'active\', false: \'\'}[$index == runtime.props[\'help-state\']]"></li>\n\t</nav>\n</section>\n');
-    
-    }).call(this);
-    
-  }).call(__obj);
-  __obj.safe = __objSafe, __obj.escape = __escape;
-  return __out.join('');
-}}, "data/views/pages/landing-content": function(exports, require, module) {module.exports = function(__obj) {
-  if (!__obj) __obj = {};
-  var __out = [], __capture = function(callback) {
-    var out = __out, result;
-    __out = [];
-    callback.call(this);
-    result = __out.join('');
-    __out = out;
-    return __safe(result);
-  }, __sanitize = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else if (typeof value !== 'undefined' && value != null) {
-      return __escape(value);
-    } else {
-      return '';
-    }
-  }, __safe, __objSafe = __obj.safe, __escape = __obj.escape;
-  __safe = __obj.safe = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else {
-      if (!(typeof value !== 'undefined' && value != null)) value = '';
-      var result = new String(value);
-      result.ecoSafe = true;
-      return result;
-    }
-  };
-  if (!__escape) {
-    __escape = __obj.escape = function(value) {
-      return ('' + value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    };
-  }
-  (function() {
-    (function() {
-    
-    
-    }).call(this);
-    
-  }).call(__obj);
-  __obj.safe = __objSafe, __obj.escape = __escape;
-  return __out.join('');
-}}, "data/views/pages/landing": function(exports, require, module) {module.exports = function(__obj) {
-  if (!__obj) __obj = {};
-  var __out = [], __capture = function(callback) {
-    var out = __out, result;
-    __out = [];
-    callback.call(this);
-    result = __out.join('');
-    __out = out;
-    return __safe(result);
-  }, __sanitize = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else if (typeof value !== 'undefined' && value != null) {
-      return __escape(value);
-    } else {
-      return '';
-    }
-  }, __safe, __objSafe = __obj.safe, __escape = __obj.escape;
-  __safe = __obj.safe = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else {
-      if (!(typeof value !== 'undefined' && value != null)) value = '';
-      var result = new String(value);
-      result.ecoSafe = true;
-      return result;
-    }
-  };
-  if (!__escape) {
-    __escape = __obj.escape = function(value) {
-      return ('' + value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    };
-  }
-  (function() {
-    (function() {
-      __out.push('<section id="landing wrapper" ng-controller="Landing">\n<nav class="left">\n\t<h1 ng-click="runtime.set(\'app-state\', 1)" ');
-    
-      __out.push(__sanitize(_T("Launch Application")));
-    
-      __out.push('></h1>\n</nav>\n<aside id="landingaside">\n\t<h1 ng-click="runtime.set(\'landing-state\', 1)" ');
-    
-      __out.push(__sanitize(_T("Read More")));
-    
-      __out.push('></h1>\n\t<img src="/icon.ico" alt="" ng-click="runtime.set(\'landing-state\', 0)">\n\t<div class="content" ng-click="runtime.set(\'landing-state\', 0)">');
-    
-      __out.push(DepMan.render(["pages", "landing-content"]));
-    
-      __out.push('</div>\n</aside>\n<nav class="right">\n\t<ul>\n\t\t<li ');
-    
-      __out.push(__sanitize(_T("Install application in Chrome")));
-    
-      __out.push(' id="chrome"></li>\n\t\t<li ');
-    
-      __out.push(__sanitize(_T("Install application in Firefox")));
-    
-      __out.push(' id="firefox"></li>\n\t\t<li ');
-    
-      __out.push(__sanitize(_T("Install application in Windows 8")));
-    
-      __out.push(' id="windows"></li>\n\t\t<li ');
-    
-      __out.push(__sanitize(_T("Install application in Opera New")));
-    
-      __out.push(' id="opera"></li>\n\t</ul>\n</nav>\n</section>\n');
-    
-    }).call(this);
-    
-  }).call(__obj);
-  __obj.safe = __objSafe, __obj.escape = __escape;
-  return __out.join('');
-}}, "data/views/sidebar/index": function(exports, require, module) {module.exports = function(__obj) {
-  if (!__obj) __obj = {};
-  var __out = [], __capture = function(callback) {
-    var out = __out, result;
-    __out = [];
-    callback.call(this);
-    result = __out.join('');
-    __out = out;
-    return __safe(result);
-  }, __sanitize = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else if (typeof value !== 'undefined' && value != null) {
-      return __escape(value);
-    } else {
-      return '';
-    }
-  }, __safe, __objSafe = __obj.safe, __escape = __obj.escape;
-  __safe = __obj.safe = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else {
-      if (!(typeof value !== 'undefined' && value != null)) value = '';
-      var result = new String(value);
-      result.ecoSafe = true;
-      return result;
-    }
-  };
-  if (!__escape) {
-    __escape = __obj.escape = function(value) {
-      return ('' + value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    };
-  }
-  (function() {
-    (function() {
-      var index, tab, _i, _len, _ref;
-    
-      __out.push('<section ng-controller="Sidebar" class="{{STATES[runtime.props[\'sidebar-state\']]}}">\n\t<nav>\n\t\t<li ng-repeat="tab in TABS" ng-click="runtime.set(\'sidebar-tab\', Tabs[tab])" ng-class="{true: \'active\'}[runtime.props[\'sidebar-tab\'] == $index]"><i class="{{ICONS[$index]}}"></i></li>\n\t</nav>\n\t<section>\n\t\t');
-    
-      _ref = this.TABS;
-      for (index = _i = 0, _len = _ref.length; _i < _len; index = ++_i) {
-        tab = _ref[index];
-        __out.push('\n\t\t<article ng-class="{true: \'active\'}[runtime.props[\'sidebar-tab\'] == ');
-        __out.push(__sanitize(index));
-        __out.push(']">');
-        __out.push(DepMan.render(['sidebar', 'tabs', tab]));
-        __out.push('</article>\n\t\t');
-      }
-    
-      __out.push('\n\t</section>\n\t<aside ng-click="toggleState()"><i ng-class="{');
-    
-      __out.push(__sanitize(this.States.open));
-    
-      __out.push(':\' icon-eye-open\', ');
-    
-      __out.push(__sanitize(this.States.closed));
-    
-      __out.push(': \'icon-eye-close\'}[runtime.props[\'sidebar-state\']]"></i></aside>\n</section>\n');
-    
-    }).call(this);
-    
-  }).call(__obj);
-  __obj.safe = __objSafe, __obj.escape = __escape;
-  return __out.join('');
-}}, "data/views/sidebar/tabs/experimental": function(exports, require, module) {module.exports = function(__obj) {
-  if (!__obj) __obj = {};
-  var __out = [], __capture = function(callback) {
-    var out = __out, result;
-    __out = [];
-    callback.call(this);
-    result = __out.join('');
-    __out = out;
-    return __safe(result);
-  }, __sanitize = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else if (typeof value !== 'undefined' && value != null) {
-      return __escape(value);
-    } else {
-      return '';
-    }
-  }, __safe, __objSafe = __obj.safe, __escape = __obj.escape;
-  __safe = __obj.safe = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else {
-      if (!(typeof value !== 'undefined' && value != null)) value = '';
-      var result = new String(value);
-      result.ecoSafe = true;
-      return result;
-    }
-  };
-  if (!__escape) {
-    __escape = __obj.escape = function(value) {
-      return ('' + value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    };
-  }
-  (function() {
-    (function() {
-      __out.push('<h1 ');
-    
-      __out.push(__sanitize(_T("Experimental Features")));
-    
-      __out.push('></h1>\n<ul>\n\t<li onclick="Toast(\'Example\', \'With Content\')"><p ');
-    
-      __out.push(__sanitize(_T("Activate a Toast")));
-    
-      __out.push('></p></li>\n\t<li onclick="Notification.toastNormal(\'Example\', [ \'With Content\' ])"><p ');
-    
-      __out.push(__sanitize(_T("Activate a Toast (Modal Override)")));
-    
-      __out.push('></p></li>\n\t<li onclick="Modal.show({title: \'Some Title\', content: \'Some Example Content\'})"><p ');
-    
-      __out.push(__sanitize(_T("Open a modal window")));
-    
-      __out.push('></p></li>\n\t<li onclick="Loading.start(); Loading.progress(\'I will turn off in 5 seconds!\'); setTimeout(Loading.end, 5000)"><p ');
-    
-      __out.push(__sanitize(_T("Open the Loading Screen")));
-    
-      __out.push('></p></li>\n</ul>\n');
-    
-    }).call(this);
-    
-  }).call(__obj);
-  __obj.safe = __objSafe, __obj.escape = __escape;
-  return __out.join('');
-}}, "data/views/sidebar/tabs/general": function(exports, require, module) {module.exports = function(__obj) {
-  if (!__obj) __obj = {};
-  var __out = [], __capture = function(callback) {
-    var out = __out, result;
-    __out = [];
-    callback.call(this);
-    result = __out.join('');
-    __out = out;
-    return __safe(result);
-  }, __sanitize = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else if (typeof value !== 'undefined' && value != null) {
-      return __escape(value);
-    } else {
-      return '';
-    }
-  }, __safe, __objSafe = __obj.safe, __escape = __obj.escape;
-  __safe = __obj.safe = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else {
-      if (!(typeof value !== 'undefined' && value != null)) value = '';
-      var result = new String(value);
-      result.ecoSafe = true;
-      return result;
-    }
-  };
-  if (!__escape) {
-    __escape = __obj.escape = function(value) {
-      return ('' + value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    };
-  }
-  (function() {
-    (function() {
-      __out.push('<h1 ');
-    
-      __out.push(__sanitize(_T("General Application Settings")));
-    
-      __out.push('></h1>\n<ul>\n\t<li ng-click="runtime.set(\'app-state\', 0)"><p ');
-    
-      __out.push(__sanitize(_T("Activate the landing page")));
-    
-      __out.push('></p></li>\n\t<li ng-click="runtime.set(\'app-state\', 2)"><p ');
-    
-      __out.push(__sanitize(_T("Activate the help page")));
-    
-      __out.push('></p></li>\n\t<li>\n\t\t<label for="languageselect" ');
-    
-      __out.push(__sanitize(_T("Select your language of choice")));
-    
-      __out.push('></label>\n\t\t<select ng-change="runtime.set(\'language\', language)" ng-model=\'language\' id="languageselect">\n\t\t\t<option value="en-US" ');
-    
-      __out.push(__sanitize(_T("English")));
-    
-      __out.push('></option>\n\t\t\t<option value="ro-RO" ');
-    
-      __out.push(__sanitize(_T("Romanian")));
-    
-      __out.push('></option>\n\t\t</select>\n\t</li>\n</ul>\n');
-    
-    }).call(this);
-    
-  }).call(__obj);
-  __obj.safe = __objSafe, __obj.escape = __escape;
-  return __out.join('');
-}}, "data/views/sidebar/tabs/list": function(exports, require, module) {module.exports = function(__obj) {
-  if (!__obj) __obj = {};
-  var __out = [], __capture = function(callback) {
-    var out = __out, result;
-    __out = [];
-    callback.call(this);
-    result = __out.join('');
-    __out = out;
-    return __safe(result);
-  }, __sanitize = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else if (typeof value !== 'undefined' && value != null) {
-      return __escape(value);
-    } else {
-      return '';
-    }
-  }, __safe, __objSafe = __obj.safe, __escape = __obj.escape;
-  __safe = __obj.safe = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else {
-      if (!(typeof value !== 'undefined' && value != null)) value = '';
-      var result = new String(value);
-      result.ecoSafe = true;
-      return result;
-    }
-  };
-  if (!__escape) {
-    __escape = __obj.escape = function(value) {
-      return ('' + value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    };
-  }
-  (function() {
-    (function() {
-      __out.push('<h1 ');
-    
-      __out.push(__sanitize(_T("Document List")));
-    
-      __out.push('></h1>\n');
-    
-    }).call(this);
-    
-  }).call(__obj);
-  __obj.safe = __objSafe, __obj.escape = __escape;
-  return __out.join('');
-}}, "data/views/sidebar/tabs/server": function(exports, require, module) {module.exports = function(__obj) {
-  if (!__obj) __obj = {};
-  var __out = [], __capture = function(callback) {
-    var out = __out, result;
-    __out = [];
-    callback.call(this);
-    result = __out.join('');
-    __out = out;
-    return __safe(result);
-  }, __sanitize = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else if (typeof value !== 'undefined' && value != null) {
-      return __escape(value);
-    } else {
-      return '';
-    }
-  }, __safe, __objSafe = __obj.safe, __escape = __obj.escape;
-  __safe = __obj.safe = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else {
-      if (!(typeof value !== 'undefined' && value != null)) value = '';
-      var result = new String(value);
-      result.ecoSafe = true;
-      return result;
-    }
-  };
-  if (!__escape) {
-    __escape = __obj.escape = function(value) {
-      return ('' + value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    };
-  }
-  (function() {
-    (function() {
-      __out.push('<h1 ');
-    
-      __out.push(__sanitize(_T("Connection Manager")));
-    
-      __out.push('></h1>\n<ul>\n\t<li ');
-    
-      __out.push(__sanitize(_T("Reconnect")));
-    
-      __out.push(' ng-click="Client.reconnect()"></li>\n</ul>\n<img id="client-qrcode" src="" alt="" class="qrcode" ng-click=\'verifyAndConnect()\' />\n<ul>\n\t<li><label for="self-client-id" ');
-    
-      __out.push(__sanitize(_T("Your Client ID")));
-    
-      __out.push('></label><input type="text" ng-model="Client.id" disabled id="self-client-id" /></li>\n\t<li><label for="remote-client-id" ');
-    
-      __out.push(__sanitize(_T("Client ID to connect to")));
-    
-      __out.push('></label><input type="text"  id="remote-client-id" ng-model="clientid"/></li>\n</ul>\n');
+      __out.push('<input type="password" id="unlockpassword">\n<input type="button" value="Submit!" id="unlockbutton">');
     
     }).call(this);
     
@@ -14403,6 +14384,391 @@ return window.JSONImport['ro-RO'] = module.exports = item;}, "data/stylesheets/f
   return __out.join('');
 }}});
 window.AppInfo = {
+  "name": "itrackr",
+  "displayname": "iTrackr",
+  "version": "1.0.0",
+  "author": {
+    "name": "Sabin Marcu",
+    "email": "sabinmarcu@gmail.com"
+  },
+  "dependencies": {
+    "coffee-script": "*",
+    "cliparser": "*",
+    "express": "*",
+    "less": "*",
+    "stylus": "*",
+    "nib": "*",
+    "isf": "*",
+    "codo": "*",
+    "stitchw": "*",
+    "pc2cs": "*",
+    "eco": "~1.1.0-rc-3",
+    "mime": "~1.2.9",
+    "LiveScript": "~1.1.1",
+    "js-yaml": "~2.1.0",
+    "grunt-contrib-watch": "~0.4.4",
+    "grunt": "~0.4.1",
+    "grunt-devtools": "0.1.0-7"
+  },
+  "scripts": {
+    "create-dir-structure": "mkdir lib src spec bin",
+    "compile": "node node_modules/.bin/coffee -c -o lib src",
+    "run-tests": "node node_modules/.bin/jasmine-node --coffee --noColor spec",
+    "test": "npm run-script compile && npm run-script run-tests"
+  },
+  "main": "./lib/script.js"
+}
+;window.AppInfo = {
+  "name": "itrackr",
+  "displayname": "iTrackr",
+  "version": "1.0.0",
+  "author": {
+    "name": "Sabin Marcu",
+    "email": "sabinmarcu@gmail.com"
+  },
+  "dependencies": {
+    "coffee-script": "*",
+    "cliparser": "*",
+    "express": "*",
+    "less": "*",
+    "stylus": "*",
+    "nib": "*",
+    "isf": "*",
+    "codo": "*",
+    "stitchw": "*",
+    "pc2cs": "*",
+    "eco": "~1.1.0-rc-3",
+    "mime": "~1.2.9",
+    "LiveScript": "~1.1.1",
+    "js-yaml": "~2.1.0",
+    "grunt-contrib-watch": "~0.4.4",
+    "grunt": "~0.4.1",
+    "grunt-devtools": "0.1.0-7"
+  },
+  "scripts": {
+    "create-dir-structure": "mkdir lib src spec bin",
+    "compile": "node node_modules/.bin/coffee -c -o lib src",
+    "run-tests": "node node_modules/.bin/jasmine-node --coffee --noColor spec",
+    "test": "npm run-script compile && npm run-script run-tests"
+  },
+  "main": "./lib/script.js"
+}
+;window.AppInfo = {
+  "name": "itrackr",
+  "displayname": "iTrackr",
+  "version": "1.0.0",
+  "author": {
+    "name": "Sabin Marcu",
+    "email": "sabinmarcu@gmail.com"
+  },
+  "dependencies": {
+    "coffee-script": "*",
+    "cliparser": "*",
+    "express": "*",
+    "less": "*",
+    "stylus": "*",
+    "nib": "*",
+    "isf": "*",
+    "codo": "*",
+    "stitchw": "*",
+    "pc2cs": "*",
+    "eco": "~1.1.0-rc-3",
+    "mime": "~1.2.9",
+    "LiveScript": "~1.1.1",
+    "js-yaml": "~2.1.0",
+    "grunt-contrib-watch": "~0.4.4",
+    "grunt": "~0.4.1",
+    "grunt-devtools": "0.1.0-7"
+  },
+  "scripts": {
+    "create-dir-structure": "mkdir lib src spec bin",
+    "compile": "node node_modules/.bin/coffee -c -o lib src",
+    "run-tests": "node node_modules/.bin/jasmine-node --coffee --noColor spec",
+    "test": "npm run-script compile && npm run-script run-tests"
+  },
+  "main": "./lib/script.js"
+}
+;window.AppInfo = {
+  "name": "itrackr",
+  "displayname": "iTrackr",
+  "version": "1.0.0",
+  "author": {
+    "name": "Sabin Marcu",
+    "email": "sabinmarcu@gmail.com"
+  },
+  "dependencies": {
+    "coffee-script": "*",
+    "cliparser": "*",
+    "express": "*",
+    "less": "*",
+    "stylus": "*",
+    "nib": "*",
+    "isf": "*",
+    "codo": "*",
+    "stitchw": "*",
+    "pc2cs": "*",
+    "eco": "~1.1.0-rc-3",
+    "mime": "~1.2.9",
+    "LiveScript": "~1.1.1",
+    "js-yaml": "~2.1.0",
+    "grunt-contrib-watch": "~0.4.4",
+    "grunt": "~0.4.1",
+    "grunt-devtools": "0.1.0-7"
+  },
+  "scripts": {
+    "create-dir-structure": "mkdir lib src spec bin",
+    "compile": "node node_modules/.bin/coffee -c -o lib src",
+    "run-tests": "node node_modules/.bin/jasmine-node --coffee --noColor spec",
+    "test": "npm run-script compile && npm run-script run-tests"
+  },
+  "main": "./lib/script.js"
+}
+;window.AppInfo = {
+  "name": "itrackr",
+  "displayname": "iTrackr",
+  "version": "1.0.0",
+  "author": {
+    "name": "Sabin Marcu",
+    "email": "sabinmarcu@gmail.com"
+  },
+  "dependencies": {
+    "coffee-script": "*",
+    "cliparser": "*",
+    "express": "*",
+    "less": "*",
+    "stylus": "*",
+    "nib": "*",
+    "isf": "*",
+    "codo": "*",
+    "stitchw": "*",
+    "pc2cs": "*",
+    "eco": "~1.1.0-rc-3",
+    "mime": "~1.2.9",
+    "LiveScript": "~1.1.1",
+    "js-yaml": "~2.1.0",
+    "grunt-contrib-watch": "~0.4.4",
+    "grunt": "~0.4.1",
+    "grunt-devtools": "0.1.0-7"
+  },
+  "scripts": {
+    "create-dir-structure": "mkdir lib src spec bin",
+    "compile": "node node_modules/.bin/coffee -c -o lib src",
+    "run-tests": "node node_modules/.bin/jasmine-node --coffee --noColor spec",
+    "test": "npm run-script compile && npm run-script run-tests"
+  },
+  "main": "./lib/script.js"
+}
+;window.AppInfo = {
+  "name": "itrackr",
+  "displayname": "iTrackr",
+  "version": "1.0.0",
+  "author": {
+    "name": "Sabin Marcu",
+    "email": "sabinmarcu@gmail.com"
+  },
+  "dependencies": {
+    "coffee-script": "*",
+    "cliparser": "*",
+    "express": "*",
+    "less": "*",
+    "stylus": "*",
+    "nib": "*",
+    "isf": "*",
+    "codo": "*",
+    "stitchw": "*",
+    "pc2cs": "*",
+    "eco": "~1.1.0-rc-3",
+    "mime": "~1.2.9",
+    "LiveScript": "~1.1.1",
+    "js-yaml": "~2.1.0",
+    "grunt-contrib-watch": "~0.4.4",
+    "grunt": "~0.4.1",
+    "grunt-devtools": "0.1.0-7"
+  },
+  "scripts": {
+    "create-dir-structure": "mkdir lib src spec bin",
+    "compile": "node node_modules/.bin/coffee -c -o lib src",
+    "run-tests": "node node_modules/.bin/jasmine-node --coffee --noColor spec",
+    "test": "npm run-script compile && npm run-script run-tests"
+  },
+  "main": "./lib/script.js"
+}
+;window.AppInfo = {
+  "name": "itrackr",
+  "displayname": "iTrackr",
+  "version": "1.0.0",
+  "author": {
+    "name": "Sabin Marcu",
+    "email": "sabinmarcu@gmail.com"
+  },
+  "dependencies": {
+    "coffee-script": "*",
+    "cliparser": "*",
+    "express": "*",
+    "less": "*",
+    "stylus": "*",
+    "nib": "*",
+    "isf": "*",
+    "codo": "*",
+    "stitchw": "*",
+    "pc2cs": "*",
+    "eco": "~1.1.0-rc-3",
+    "mime": "~1.2.9",
+    "LiveScript": "~1.1.1",
+    "js-yaml": "~2.1.0",
+    "grunt-contrib-watch": "~0.4.4",
+    "grunt": "~0.4.1",
+    "grunt-devtools": "0.1.0-7"
+  },
+  "scripts": {
+    "create-dir-structure": "mkdir lib src spec bin",
+    "compile": "node node_modules/.bin/coffee -c -o lib src",
+    "run-tests": "node node_modules/.bin/jasmine-node --coffee --noColor spec",
+    "test": "npm run-script compile && npm run-script run-tests"
+  },
+  "main": "./lib/script.js"
+}
+;window.AppInfo = {
+  "name": "itrackr",
+  "displayname": "iTrackr",
+  "version": "1.0.0",
+  "author": {
+    "name": "Sabin Marcu",
+    "email": "sabinmarcu@gmail.com"
+  },
+  "dependencies": {
+    "coffee-script": "*",
+    "cliparser": "*",
+    "express": "*",
+    "less": "*",
+    "stylus": "*",
+    "nib": "*",
+    "isf": "*",
+    "codo": "*",
+    "stitchw": "*",
+    "pc2cs": "*",
+    "eco": "~1.1.0-rc-3",
+    "mime": "~1.2.9",
+    "LiveScript": "~1.1.1",
+    "js-yaml": "~2.1.0",
+    "grunt-contrib-watch": "~0.4.4",
+    "grunt": "~0.4.1",
+    "grunt-devtools": "0.1.0-7"
+  },
+  "scripts": {
+    "create-dir-structure": "mkdir lib src spec bin",
+    "compile": "node node_modules/.bin/coffee -c -o lib src",
+    "run-tests": "node node_modules/.bin/jasmine-node --coffee --noColor spec",
+    "test": "npm run-script compile && npm run-script run-tests"
+  },
+  "main": "./lib/script.js"
+}
+;window.AppInfo = {
+  "name": "itrackr",
+  "displayname": "iTrackr",
+  "version": "1.0.0",
+  "author": {
+    "name": "Sabin Marcu",
+    "email": "sabinmarcu@gmail.com"
+  },
+  "dependencies": {
+    "coffee-script": "*",
+    "cliparser": "*",
+    "express": "*",
+    "less": "*",
+    "stylus": "*",
+    "nib": "*",
+    "isf": "*",
+    "codo": "*",
+    "stitchw": "*",
+    "pc2cs": "*",
+    "eco": "~1.1.0-rc-3",
+    "mime": "~1.2.9",
+    "LiveScript": "~1.1.1",
+    "js-yaml": "~2.1.0",
+    "grunt-contrib-watch": "~0.4.4",
+    "grunt": "~0.4.1",
+    "grunt-devtools": "0.1.0-7"
+  },
+  "scripts": {
+    "create-dir-structure": "mkdir lib src spec bin",
+    "compile": "node node_modules/.bin/coffee -c -o lib src",
+    "run-tests": "node node_modules/.bin/jasmine-node --coffee --noColor spec",
+    "test": "npm run-script compile && npm run-script run-tests"
+  },
+  "main": "./lib/script.js"
+}
+;window.AppInfo = {
+  "name": "itrackr",
+  "displayname": "iTrackr",
+  "version": "1.0.0",
+  "author": {
+    "name": "Sabin Marcu",
+    "email": "sabinmarcu@gmail.com"
+  },
+  "dependencies": {
+    "coffee-script": "*",
+    "cliparser": "*",
+    "express": "*",
+    "less": "*",
+    "stylus": "*",
+    "nib": "*",
+    "isf": "*",
+    "codo": "*",
+    "stitchw": "*",
+    "pc2cs": "*",
+    "eco": "~1.1.0-rc-3",
+    "mime": "~1.2.9",
+    "LiveScript": "~1.1.1",
+    "js-yaml": "~2.1.0",
+    "grunt-contrib-watch": "~0.4.4",
+    "grunt": "~0.4.1",
+    "grunt-devtools": "0.1.0-7"
+  },
+  "scripts": {
+    "create-dir-structure": "mkdir lib src spec bin",
+    "compile": "node node_modules/.bin/coffee -c -o lib src",
+    "run-tests": "node node_modules/.bin/jasmine-node --coffee --noColor spec",
+    "test": "npm run-script compile && npm run-script run-tests"
+  },
+  "main": "./lib/script.js"
+}
+;window.AppInfo = {
+  "name": "itrackr",
+  "displayname": "iTrackr",
+  "version": "1.0.0",
+  "author": {
+    "name": "Sabin Marcu",
+    "email": "sabinmarcu@gmail.com"
+  },
+  "dependencies": {
+    "coffee-script": "*",
+    "cliparser": "*",
+    "express": "*",
+    "less": "*",
+    "stylus": "*",
+    "nib": "*",
+    "isf": "*",
+    "codo": "*",
+    "stitchw": "*",
+    "pc2cs": "*",
+    "eco": "~1.1.0-rc-3",
+    "mime": "~1.2.9",
+    "LiveScript": "~1.1.1",
+    "js-yaml": "~2.1.0",
+    "grunt-contrib-watch": "~0.4.4",
+    "grunt": "~0.4.1",
+    "grunt-devtools": "0.1.0-7"
+  },
+  "scripts": {
+    "create-dir-structure": "mkdir lib src spec bin",
+    "compile": "node node_modules/.bin/coffee -c -o lib src",
+    "run-tests": "node node_modules/.bin/jasmine-node --coffee --noColor spec",
+    "test": "npm run-script compile && npm run-script run-tests"
+  },
+  "main": "./lib/script.js"
+}
+;window.AppInfo = {
   "name": "itrackr",
   "displayname": "iTrackr",
   "version": "1.0.0",
@@ -14491,7 +14857,7 @@ Other than that, feel free to enjoy the application!
 @Application Name : iTrackr
 @Author           : Sabin Marcu <sabinmarcu@gmail.com>
 @Version          : 1.0.0
-@Date Compiled    : Thu Aug 01 2013 11:26:52 GMT+0300 (EEST)
+@Date Compiled    : Fri Aug 02 2013 02:08:58 GMT+0300 (EEST)
 **/
 
 !function(module){!function(){var CHARS="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".split("");Math.uuid=function(len,radix){var chars=CHARS,uuid=[],i;radix=radix||chars.length;if(len){for(i=0;i<len;i++)uuid[i]=chars[0|Math.random()*radix]}else{var r;uuid[8]=uuid[13]=uuid[18]=uuid[23]="-";uuid[14]="4";for(i=0;i<36;i++){if(!uuid[i]){r=0|Math.random()*16;uuid[i]=chars[i==19?r&3|8:r]}}}return uuid.join("")};Math.uuidFast=function(){var chars=CHARS,uuid=new Array(36),rnd=0,r;for(var i=0;i<36;i++){if(i==8||i==13||i==18||i==23){uuid[i]="-"}else if(i==14){uuid[i]="4"}else{if(rnd<=2)rnd=33554432+Math.random()*16777216|0;r=rnd&15;rnd=rnd>>4;uuid[i]=chars[i==19?r&3|8:r]}}return uuid.join("")};Math.uuidCompact=function(){return"xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g,function(c){var r=Math.random()*16|0,v=c=="x"?r:r&3|8;return v.toString(16)})}}();!function(){if(!this.require){var modules={},cache={},require=function(name,root){var path=expand(root,name),module=cache[path],fn;if(module){return module.exports}else if(fn=modules[path]||modules[path=expand(path,"./index")]){module={id:path,exports:{}};try{cache[path]=module;fn(module.exports,function(name){return require(name,dirname(path))},module);return module.exports}catch(err){delete cache[path];throw err}}else{throw"module '"+name+"' not found"}},expand=function(root,name){var results=[],parts,part;if(/^\.\.?(\/|$)/.test(name)){parts=[root,name].join("/").split("/")}else{parts=name.split("/")}for(var i=0,length=parts.length;i<length;i++){part=parts[i];if(part==".."){results.pop()}else if(part!="."&&part!=""){results.push(part)}}return results.join("/")},dirname=function(path){return path.split("/").slice(0,-1).join("/")};this.require=function(name){return require(name,"")};this.require.define=function(bundle){for(var key in bundle)modules[key]=bundle[key]}}return this.require.define}.call(this)({Enum:function(exports,require,module){!function(){var Enum;Enum=function(){function Enum(items,offset){var item,key,_i,_len;if(offset==null){offset=0}for(key=_i=0,_len=items.length;_i<_len;key=++_i){item=items[key];this[item]=key+offset}}return Enum}();module.exports=Enum}.call(this)},ErrorReporter:function(exports,require,module){!function(){var ErrorReporter,__bind=function(fn,me){return function(){return fn.apply(me,arguments)}},__indexOf=[].indexOf||function(item){for(var i=0,l=this.length;i<l;i++){if(i in this&&this[i]===item)return i}return-1};ErrorReporter=function(){function ErrorReporter(){this.toString=__bind(this.toString,this)}ErrorReporter._errors={"Unknown Error":["An unknown error has occurred"]};ErrorReporter._indices=[ErrorReporter._errors["Unknown Error"][0]];ErrorReporter._groups=["Unknown Error"];ErrorReporter.wrapCustomError=function(error){return"["+error.name+"] "+error.message};ErrorReporter.generate=function(errorCode,extra){if(extra==null){extra=null}return(new this).generate(errorCode,extra)};ErrorReporter.extended=function(){var error,errors,group,key,_i,_len,_ref;_ref=this.errors;for(group in _ref){errors=_ref[group];this._errors[group]=errors;this._groups.push(group);for(key=_i=0,_len=errors.length;_i<_len;key=++_i){error=errors[key];this._indices.push(this._errors[group][key])}}this.prototype._=this;delete this.errors;return this.include(ErrorReporter.prototype)};ErrorReporter.prototype.generate=function(errCode,extra){var errors,group,_ref,_ref1;this.errCode=errCode;if(extra==null){extra=null}if(!this._._indices[this.errCode]){this.name=this._._groups[0];this.message=this._._errors[this._._groups[0]][0]}else{this.message=this._._indices[this.errCode];if(extra){this.message+=" - Extra Data : "+extra}_ref=this._._errors;for(group in _ref){errors=_ref[group];if(!(_ref1=this.message,__indexOf.call(errors,_ref1)>=0)){continue}this.name=group;break}}return this};ErrorReporter.prototype.toString=function(){return"["+this.name+"] "+this.message+" |"+this.errCode+"|"};return ErrorReporter}();module.exports=ErrorReporter}.call(this)},"Modules/Mediator":function(exports,require,module){!function(){var Modules;Modules={Observer:require("Modules/Observer")};Modules.Mediator=function(){var extended,included,installTo,key,value,_ref;function Mediator(){}_ref=Modules.Observer;for(key in _ref){value=_ref[key];Mediator.prototype[key]=value}installTo=function(object){this.delegate("publish",object);return this.delegate("subscribe",object)};included=function(){this.prototype.queue={};return this.prototype._delegates={publish:true,subscribe:true}};extended=function(){this.queue={};return this._delegates={publish:true,subscribe:true}};return Mediator}();module.exports=Modules.Mediator.prototype}.call(this)},"Modules/ORM":function(exports,require,module){!function(){var Modules,V,__indexOf=[].indexOf||function(item){for(var i=0,l=this.length;i<l;i++){if(i in this&&this[i]===item)return i}return-1};Modules={};V=require("Variable");Modules.ORM=function(){function ORM(){}ORM.prototype._identifier="BasicORM";ORM.prototype._reccords={};ORM.prototype._symlinks={};ORM.prototype._head=0;ORM.prototype._props=[];ORM.prototype.get=function(which){if(typeof which==="object"){return this.getAdv(which)}return this._symlinks[which]||this._reccords[which]||null};ORM.prototype.getAdv=function(what){var check,key,rec,results,_ref,_ref1;results=[];check=function(rec){var final,k,mod,modfinal,recs,v,val,value,_i,_len;for(k in what){v=what[k];final=false;if(rec[k]==null){break}if(typeof v==="object"){for(mod in v){val=v[mod];modfinal=true;switch(mod){case"$gt":if(rec[k].get()<=val){modfinal=false;break}break;case"$gte":if(rec[k].get()<val){modfinal=false;break}break;case"$lt":if(rec[k].get()>=val){modfinal=false;break}break;case"$lte":if(rec[k].get()>val){modfinal=false;break}break;case"$contains":recs=rec[k].get();if(recs.constructor!==Array){modfinal=false;break}modfinal=false;for(_i=0,_len=recs.length;_i<_len;_i++){value=recs[_i];if(value===val){modfinal=true;break}}}if(modfinal===false){break}}if(modfinal===true){final=true}}else if(rec[k].get()===v){final=true}else{break}}if(final){return results.push(rec)}};_ref=this._reccords;for(key in _ref){rec=_ref[key];check(rec)}_ref1=this._symlinks;for(key in _ref1){rec=_ref1[key];check(rec)}if(results.length===0){return null}if(results.length===1){return results[0]}return results};ORM.prototype["delete"]=function(which){var _base,_base1;if((_base=this._reccords)[which]==null){_base[which]=null}return(_base1=this._symlinks)[which]!=null?(_base1=this._symlinks)[which]:_base1[which]=null};ORM.prototype.create=function(id,args){var prop,uuid,_i,_len,_ref;if(this._reccords==null){this._reccords={}}if(args==null){args={}}uuid=id||args._id||this._head;if(args._id==null){args._id=uuid}uuid=Math.uuidFast(uuid);args._uuid=uuid;args._fn=this;if(typeof this.preCreate==="function"){this.preCreate(args)}this._reccords[uuid]=new this(args);this._reccords[uuid]._constructor(args);if(typeof this.postCreate==="function"){this.postCreate(this._reccords[uuid],args)}if(id!=null&&id!==this._head){this._symlinks[id]=this._reccords[uuid]}if(uuid===this._head){this._head++}_ref=this._props;for(_i=0,_len=_ref.length;_i<_len;_i++){prop=_ref[_i];this._reccords[uuid][prop]=V.spawn()}return this._reccords[uuid]};ORM.prototype.reuse=function(which,args){var rez;if(args==null){args={}}rez=this.get(which);if(rez!=null){return rez}return this.create(which,args)};ORM.prototype.addProp=function(prop){var key,rec,_ref,_results;this._props.push(prop);_ref=this._reccords;_results=[];for(key in _ref){rec=_ref[key];_results.push(rec[prop]!=null?rec[prop]:rec[prop]=V.spawn())}return _results};ORM.prototype.removeProp=function(prop){var k,key,p,rec,_i,_len,_ref,_ref1;_ref=this._reccords;for(key in _ref){rec=_ref[key];if(rec[prop]==null){rec[prop]=null}}_ref1=this._props;for(k=_i=0,_len=_ref1.length;_i<_len;k=++_i){p=_ref1[k];if(p===prop){return this._props.splice(k,1)}}};ORM.prototype.extended=function(){this._excludes=["_fn","_uuid","_id"];return this.include({_constructor:function(args){var k,key,v,value,valueSet,_results;valueSet={};this._uuid=args._uuid||null;this._id=args._id||null;this.fn=args._fn;for(key in args){value=args[key];if(__indexOf.call(this.fn._excludes,key)<0&&this.constructFilter(key,value)!==false){valueSet[key]=value}}if(this.init!=null){return this.init.call(this,valueSet)}_results=[];for(k in valueSet){v=valueSet[k];_results.push(this[k]=v)}return _results},constructFilter:function(key,value){return true},remove:function(){return this.parent.remove(this.id)}})};return ORM}();module.exports=Modules.ORM.prototype}.call(this)},"Modules/Observer":function(exports,require,module){!function(){var Modules,__slice=[].slice;Modules={};Modules.Observer=function(){function Observer(){}Observer.prototype.delegateEvent=function(event,handler,object){var c,_base;if(object==null){object=window}if(event.substr(0,2)==="on"){event=event.substr(2)}if((_base=this.queue)[event]==null){_base[event]=[]}c=this.queue[event].length;this.queue[event].unshift(function(){return handler.apply(object,arguments)});return c};Observer.prototype.subscribe=function(event,handler){return this.delegateEvent(event,handler,this)};Observer.prototype.publish=function(){var args,event,handler,key,_ref;args=1<=arguments.length?__slice.call(arguments,0):[];event=args[0];args=args.splice(1);if(!event||this.queue[event]==null){return this}_ref=this.queue[event];for(key in _ref){handler=_ref[key];if(key!=="__head"){handler.apply(this,args)}}return this};Observer.prototype.unsubscribe=function(event,id){if(!this.queue[event]){return null}if(!this.queue[event][id]){return null}return this.queue[event].splice(id,1)};Observer.prototype.included=function(){return this.prototype.queue={}};Observer.prototype.extended=function(){return this.queue={}};return Observer}();module.exports=Modules.Observer.prototype}.call(this)},"Modules/Overload":function(exports,require,module){!function(){var CRITERIA,Include,Modules,_count,__slice=[].slice,__bind=function(fn,me){return function(){return fn.apply(me,arguments)}};Modules={};_count=function(object){var key,nr,value;nr=0;for(key in object){value=object[key];nr++}return nr};CRITERIA={args:function(crit,args){return args.length===crit}};Include=function(){function Include(){}Include.prototype.overload=function(sets){var helper;helper=new Modules.Overload(sets,this);return function(){var args;args=1<=arguments.length?__slice.call(arguments,0):[];helper.parent=this;return helper.verifyAll.apply(helper,args)}};return Include}();Modules.Overload=function(){function Overload(sets,parent){var aux,i,j,name,set,_i,_j,_ref,_ref1,_ref2;this.parent=parent;this.verify=__bind(this.verify,this);this.verifyAll=__bind(this.verifyAll,this);this.names=[];this.verifies=[];this.handles=[];for(name in sets){set=sets[name];this.names.push(name);this.verifies.push(set["if"]||null);this.handles.push(set.then||null)}for(i=_i=0,_ref=this.verifies.length-1;0<=_ref?_i<=_ref:_i>=_ref;i=0<=_ref?++_i:--_i){for(j=_j=_ref1=i+1,_ref2=this.verifies.length;_ref1<=_ref2?_j<=_ref2:_j>=_ref2;j=_ref1<=_ref2?++_j:--_j){if(_count(this.verifies[i])<_count(this.verifies[j])){aux=this.verifies[i];this.verifies[i]=this.verifies[j];this.verifies[j]=aux;aux=this.names[i];this.names[i]=this.names[j];this.names[j]=aux;aux=this.handles[i];this.handles[i]=this.handles[j];this.handles[j]=aux}}}}Overload.prototype.verifyAll=function(){var args,how,key,set,what,_i,_len,_ref;args=1<=arguments.length?__slice.call(arguments,0):[];this.args=args;_ref=this.verifies;for(key=_i=0,_len=_ref.length;_i<_len;key=++_i){set=_ref[key];if(set!=null){for(what in set){how=set[what];if(!this.verify(what,how)){break}return this.handles[key].apply(this.parent,this.args)}}}return(this.handles["default"]||this.handles[key-1]).apply(this.parent,this.args)};Overload.prototype.verify=function(what,how){if(CRITERIA[what]){return CRITERIA[what](how,this.args)}else{what=parseInt(what.replace("arg",""))-1;if(this.args[what]!=null){return how.apply(this.parent,this.args)}return false}};return Overload}();module.exports=Include.prototype}.call(this)},"Modules/Pythonize":function(exports,require,module){!function(){var CRITERIA,Include,Modules,_count,__slice=[].slice,__bind=function(fn,me){return function(){return fn.apply(me,arguments)}},__indexOf=[].indexOf||function(item){for(var i=0,l=this.length;i<l;i++){if(i in this&&this[i]===item)return i}return-1};Modules={};_count=function(object){var key,nr,value;nr=0;for(key in object){value=object[key];nr++}return nr};CRITERIA={args:function(crit,args){return args.length===crit}};Include=function(){function Include(){}Include.prototype.parameterize=function(sets,callback){var helper;helper=new Modules.Pythonize(sets,callback);return function(){var args;args=1<=arguments.length?__slice.call(arguments,0):[];helper.parent=this;return helper.verifyAll.apply(helper,args)}};return Include}();Modules.Pythonize=function(){function Pythonize(sets,callback){var item,newItem,_i,_len;this.callback=callback;this.verifyAll=__bind(this.verifyAll,this);this.parent=null;this._options=[];for(_i=0,_len=sets.length;_i<_len;_i++){item=sets[_i];newItem={name:item.name||item.toString(),"default":item["default"]||null};this._options.push(newItem)}}Pythonize.prototype.verifyAll=function(){var arg,args,curArg,i,items,lastarg,len,_i,_ref,_ref1,_ref2;args=1<=arguments.length?__slice.call(arguments,0):[];this.args=args;this.options={};len=this.args.length-1;i=0;while(this.args.length>1){curArg=this._options[i];arg=this.args.shift();this.options[curArg.name]=arg||curArg["default"];i++}lastarg=this.args.pop();items=this.verifyObject(lastarg,len);if(len<this._options.length-1){for(i=_i=_ref=len+(items.length===0),_ref1=this._options.length-1;_ref<=_ref1?_i<=_ref1:_i>=_ref1;i=_ref<=_ref1?++_i:--_i){if(!(_ref2=this._options[i].name,__indexOf.call(items,_ref2)>=0)){this.options[this._options[i].name]=this._options[i]["default"]}}}return this.callback.apply(this.parent,[this.options])};Pythonize.prototype.verifyObject=function(obj,id){var name,omits,option,valid,value,_i,_len,_ref;omits=[];if(typeof obj==="object"){for(name in obj){value=obj[name];valid=false;_ref=this._options;for(_i=0,_len=_ref.length;_i<_len;_i++){option=_ref[_i];if(option.name===name){valid=true;break}}if(!valid){this.options[this._options[id].name]=obj;return[]}else{omits.push(name);this.options[name]=value}}}else{this.options[this._options[id].name]=obj}return omits};return Pythonize}();module.exports=Include.prototype}.call(this)},"Modules/StateMachine":function(exports,require,module){!function(){var Modules,__bind=function(fn,me){return function(){return fn.apply(me,arguments)}};Modules={};Modules.StateMachine=function(){function StateMachine(){this.delegateContext=__bind(this.delegateContext,this)}StateMachine.prototype.extended=function(){this._contexts=[];return this._activeContext=null};StateMachine.prototype.included=function(){this.prototype._contexts=[];return this.prototype._activeContext=null};StateMachine.prototype.delegateContext=function(context){var l;if(this._find(context)){return null}l=this._contexts.length;this._contexts[l]=context;if(context.activate==null){context.activate=function(){}}if(context.deactivate==null){context.deactivate=function(){}}return this};StateMachine.prototype.getActiveContextID=function(){return this._activeContext};StateMachine.prototype.getActiveContext=function(){return this._activeContext};StateMachine.prototype.getContext=function(context){return this._contexts[context]||null};StateMachine.prototype._find=function(con){var key,value,_i,_len,_ref;_ref=this._contexts;for(value=_i=0,_len=_ref.length;_i<_len;value=++_i){key=_ref[value];if(con===key){return value}}return null};StateMachine.prototype.activateContext=function(context){var con;con=this._find(context);if(con==null){return null}if(this._activeContext===con){return true}this._activeContext=con;return context.activate()};StateMachine.prototype.deactivateContext=function(context){if(this._find(context)==null){return null}this._activeContext=null;return context.deactivate()};StateMachine.prototype.switchContext=function(context){var con;if(context==null){con=this._activeContext+1;if(con===this._contexts.length){con=0}}else{con=this._find(context);if(con==null){return null}}this.deactivateContext(this._contexts[this._activeContext]);this.activateContext(this._contexts[con]);return this._contexts[con]};return StateMachine}();module.exports=Modules.StateMachine.prototype}.call(this)},Object:function(exports,require,module){!function(){var $,Obiect,clone,_excludes,__indexOf=[].indexOf||function(item){for(var i=0,l=this.length;i<l;i++){if(i in this&&this[i]===item)return i}return-1},__slice=[].slice;_excludes=["included","extended"];clone=function(obj){var k,o,v;o=obj instanceof Array?[]:{};for(k in obj){v=obj[k];if(v!=null&&typeof v==="object"){o[k]=clone(v)}else{o[k]=v}}return o};$=function(what){return $[what]||null};Obiect=function(){var extended,included;function Obiect(){}Obiect.clone=function(obj){if(obj==null){obj=this}debugger;return Obiect.proxy(Obiect.include,Obiect.proxy(Obiect.extend,function(){})(obj))(obj.prototype)};Obiect.extend=function(obj,into){var k,value,_ref;if(into==null){into=this}obj=clone(obj);for(k in obj){value=obj[k];if(!(__indexOf.call(_excludes,k)>=0||obj._excludes!=null&&__indexOf.call(obj._excludes,k)>=0)){if(into[k]!=null){if(into["super"]==null){into["super"]={}}into["super"][k]=into[k]}into[k]=value}}if((_ref=obj.extended)!=null){_ref.call(into)}return this};Obiect.include=function(obj,into){var key,value,_ref;if(into==null){into=this}obj=clone(obj);for(key in obj){value=obj[key];into.prototype[key]=value}if((_ref=obj.included)!=null){_ref.call(into)}return this};Obiect.proxy=function(){var to,what,_this=this;what=arguments[0];to=arguments[1];if(typeof what==="function"){return function(){var args;args=1<=arguments.length?__slice.call(arguments,0):[];return what.apply(to,args)}}else{return this[what]}};Obiect.delegate=function(property,context){var _ref;if(((_ref=this._delegates)!=null?_ref[property]:void 0)!=null===false&&this._deleagates[property]!==false){trigger("Cannot delegate member "+property+" to "+context)}return context[property]=this.proxy(function(){return this[property](arguments)},this)};Obiect.echo=function(){var args,owner,prefix,_d;args=1<=arguments.length?__slice.call(arguments,0):[];_d=new Date;owner="<not supported>";if(this.__proto__!=null){owner=this.__proto__.constructor.name}prefix="["+_d.getHours()+":"+_d.getMinutes()+":"+_d.getSeconds()+"]["+(this.name||owner)+"]";if(args[0]===""){args[0]=prefix}else{args[0]=""+prefix+" "+args[0]}console.log(args);return this};Obiect.log=function(){var args;args=1<=arguments.length?__slice.call(arguments,0):[];if((typeof IS!=="undefined"&&IS!==null?IS.isDev:void 0)||window.isDev||(typeof root!=="undefined"&&root!==null?root.isDev:void 0)||isDev){args.unshift("");this.echo.apply(this,args)}return this};extended=function(){};included=function(){};Obiect.include({proxy:Obiect.proxy,log:Obiect.log,echo:Obiect.echo});return Obiect}();module.exports=Obiect}.call(this)},Promise:function(exports,require,module){!function(){var Promise,__slice=[].slice;Promise=function(){function Promise(promise){if(promise instanceof Promise){return promise}this.callbacks=[]}Promise.prototype.then=function(ok,err,progr){this.callbacks.push({ok:ok,error:err,progress:progr});return this};Promise.prototype.resolve=function(){var args,callback,time,_this=this;args=1<=arguments.length?__slice.call(arguments,0):[];callback=this.callbacks.shift();if(callback&&callback.ok){callback.ok.apply(this,args)}else{time=setTimeout(function(){clearTimeout(time);return _this.resolve.apply(_this,args)},50)}return this};Promise.prototype.reject=function(){var args,callback,time,_this=this;args=1<=arguments.length?__slice.call(arguments,0):[];callback=this.callbacks.shift();if(callback&&callback.error){callback.error.apply(this,args)}else{time=setTimeout(function(){clearTimeout(time);return _this.reject.apply(_this,args)},50)}return this};Promise.prototype.progress=function(){var args,callback;args=1<=arguments.length?__slice.call(arguments,0):[];callback=this.callbacks[0];if(callback&&callback.progress){callback.progress.apply(this,args)}return this};return Promise}();module.exports=Promise}.call(this)},Variable:function(exports,require,module){!function(){var Variable,_ref,__hasProp={}.hasOwnProperty,__extends=function(child,parent){for(var key in parent){if(__hasProp.call(parent,key))child[key]=parent[key]}function ctor(){this.constructor=child}ctor.prototype=parent.prototype;child.prototype=new ctor;child.__super__=parent.prototype;return child};Variable=function(_super){__extends(Variable,_super);function Variable(){_ref=Variable.__super__.constructor.apply(this,arguments);return _ref}Variable.spawn=function(){var x;x=new this;x._value=null;return x};Variable.prototype.get=function(){return this._value};Variable.prototype.set=function(value){return this._value=value};Variable.prototype.add=function(reccord){if(this._value==null||this._value.constructor!==Array){this._value=[]}return this._value.push(reccord)};return Variable}(require("Object"));if(typeof module!=="undefined"&&module!==null){module.exports=Variable}}.call(this)},async:function(exports,require,module){!function(){var async={};var root,previous_async;root=this;if(root!=null){previous_async=root.async}async.noConflict=function(){root.async=previous_async;return async};function only_once(fn){var called=false;return function(){if(called)throw new Error("Callback was already called.");called=true;fn.apply(root,arguments)}}var _each=function(arr,iterator){if(arr.forEach){return arr.forEach(iterator)}for(var i=0;i<arr.length;i+=1){iterator(arr[i],i,arr)}};var _map=function(arr,iterator){if(arr.map){return arr.map(iterator)}var results=[];_each(arr,function(x,i,a){results.push(iterator(x,i,a))});return results};var _reduce=function(arr,iterator,memo){if(arr.reduce){return arr.reduce(iterator,memo)}_each(arr,function(x,i,a){memo=iterator(memo,x,i,a)});return memo};var _keys=function(obj){if(Object.keys){return Object.keys(obj)}var keys=[];for(var k in obj){if(obj.hasOwnProperty(k)){keys.push(k)}}return keys};if(typeof process==="undefined"||!process.nextTick){if(typeof setImmediate==="function"){async.nextTick=function(fn){setImmediate(fn)};async.setImmediate=async.nextTick}else{async.nextTick=function(fn){setTimeout(fn,0)};async.setImmediate=async.nextTick}}else{async.nextTick=process.nextTick;if(typeof setImmediate!=="undefined"){async.setImmediate=setImmediate}else{async.setImmediate=async.nextTick}}async.each=function(arr,iterator,callback){callback=callback||function(){};if(!arr.length){return callback()}var completed=0;_each(arr,function(x){iterator(x,only_once(function(err){if(err){callback(err);callback=function(){}}else{completed+=1;if(completed>=arr.length){callback(null)}}}))})};async.forEach=async.each;async.eachSeries=function(arr,iterator,callback){callback=callback||function(){};if(!arr.length){return callback()}var completed=0;var iterate=function(){iterator(arr[completed],function(err){if(err){callback(err);callback=function(){}}else{completed+=1;if(completed>=arr.length){callback(null)}else{iterate()}}})};iterate()};async.forEachSeries=async.eachSeries;async.eachLimit=function(arr,limit,iterator,callback){var fn=_eachLimit(limit);fn.apply(null,[arr,iterator,callback])};async.forEachLimit=async.eachLimit;var _eachLimit=function(limit){return function(arr,iterator,callback){callback=callback||function(){};if(!arr.length||limit<=0){return callback()}var completed=0;var started=0;var running=0;!function replenish(){if(completed>=arr.length){return callback()}while(running<limit&&started<arr.length){started+=1;running+=1;iterator(arr[started-1],function(err){if(err){callback(err);callback=function(){}}else{completed+=1;running-=1;if(completed>=arr.length){callback()}else{replenish()}}})}}()}};var doParallel=function(fn){return function(){var args=Array.prototype.slice.call(arguments);return fn.apply(null,[async.each].concat(args))}};var doParallelLimit=function(limit,fn){return function(){var args=Array.prototype.slice.call(arguments);return fn.apply(null,[_eachLimit(limit)].concat(args))}};var doSeries=function(fn){return function(){var args=Array.prototype.slice.call(arguments);return fn.apply(null,[async.eachSeries].concat(args))}};var _asyncMap=function(eachfn,arr,iterator,callback){var results=[];arr=_map(arr,function(x,i){return{index:i,value:x}});eachfn(arr,function(x,callback){iterator(x.value,function(err,v){results[x.index]=v;callback(err)})},function(err){callback(err,results)})};async.map=doParallel(_asyncMap);async.mapSeries=doSeries(_asyncMap);async.mapLimit=function(arr,limit,iterator,callback){return _mapLimit(limit)(arr,iterator,callback)};var _mapLimit=function(limit){return doParallelLimit(limit,_asyncMap)};async.reduce=function(arr,memo,iterator,callback){async.eachSeries(arr,function(x,callback){iterator(memo,x,function(err,v){memo=v;callback(err)})},function(err){callback(err,memo)})};async.inject=async.reduce;async.foldl=async.reduce;async.reduceRight=function(arr,memo,iterator,callback){var reversed=_map(arr,function(x){return x}).reverse();async.reduce(reversed,memo,iterator,callback)};async.foldr=async.reduceRight;var _filter=function(eachfn,arr,iterator,callback){var results=[];arr=_map(arr,function(x,i){return{index:i,value:x}});eachfn(arr,function(x,callback){iterator(x.value,function(v){if(v){results.push(x)}callback()})},function(err){callback(_map(results.sort(function(a,b){return a.index-b.index}),function(x){return x.value}))})};async.filter=doParallel(_filter);async.filterSeries=doSeries(_filter);async.select=async.filter;async.selectSeries=async.filterSeries;var _reject=function(eachfn,arr,iterator,callback){var results=[];arr=_map(arr,function(x,i){return{index:i,value:x}});eachfn(arr,function(x,callback){iterator(x.value,function(v){if(!v){results.push(x)}callback()})},function(err){callback(_map(results.sort(function(a,b){return a.index-b.index}),function(x){return x.value}))})};async.reject=doParallel(_reject);async.rejectSeries=doSeries(_reject);var _detect=function(eachfn,arr,iterator,main_callback){eachfn(arr,function(x,callback){iterator(x,function(result){if(result){main_callback(x);main_callback=function(){}}else{callback()}})},function(err){main_callback()})};async.detect=doParallel(_detect);async.detectSeries=doSeries(_detect);async.some=function(arr,iterator,main_callback){async.each(arr,function(x,callback){iterator(x,function(v){if(v){main_callback(true);main_callback=function(){}}callback()})},function(err){main_callback(false)})};async.any=async.some;async.every=function(arr,iterator,main_callback){async.each(arr,function(x,callback){iterator(x,function(v){if(!v){main_callback(false);main_callback=function(){}}callback()})},function(err){main_callback(true)})};async.all=async.every;async.sortBy=function(arr,iterator,callback){async.map(arr,function(x,callback){iterator(x,function(err,criteria){if(err){callback(err)}else{callback(null,{value:x,criteria:criteria})}})},function(err,results){if(err){return callback(err)}else{var fn=function(left,right){var a=left.criteria,b=right.criteria;return a<b?-1:a>b?1:0};callback(null,_map(results.sort(fn),function(x){return x.value}))}})};async.auto=function(tasks,callback){callback=callback||function(){};var keys=_keys(tasks);if(!keys.length){return callback(null)}var results={};var listeners=[];var addListener=function(fn){listeners.unshift(fn)};var removeListener=function(fn){for(var i=0;i<listeners.length;i+=1){if(listeners[i]===fn){listeners.splice(i,1);return}}};var taskComplete=function(){_each(listeners.slice(0),function(fn){fn()})};addListener(function(){if(_keys(results).length===keys.length){callback(null,results);callback=function(){}}});_each(keys,function(k){var task=tasks[k]instanceof Function?[tasks[k]]:tasks[k];var taskCallback=function(err){var args=Array.prototype.slice.call(arguments,1);if(args.length<=1){args=args[0]}if(err){var safeResults={};_each(_keys(results),function(rkey){safeResults[rkey]=results[rkey]});safeResults[k]=args;callback(err,safeResults);callback=function(){}}else{results[k]=args;async.setImmediate(taskComplete)}};var requires=task.slice(0,Math.abs(task.length-1))||[];var ready=function(){return _reduce(requires,function(a,x){return a&&results.hasOwnProperty(x)},true)&&!results.hasOwnProperty(k)};if(ready()){task[task.length-1](taskCallback,results)}else{var listener=function(){if(ready()){removeListener(listener);task[task.length-1](taskCallback,results)}};addListener(listener)}})};async.waterfall=function(tasks,callback){callback=callback||function(){};if(tasks.constructor!==Array){var err=new Error("First argument to waterfall must be an array of functions");return callback(err)}if(!tasks.length){return callback()}var wrapIterator=function(iterator){return function(err){if(err){callback.apply(null,arguments);callback=function(){}}else{var args=Array.prototype.slice.call(arguments,1);var next=iterator.next();if(next){args.push(wrapIterator(next))}else{args.push(callback)}async.setImmediate(function(){iterator.apply(null,args)})}}};wrapIterator(async.iterator(tasks))()};var _parallel=function(eachfn,tasks,callback){callback=callback||function(){};if(tasks.constructor===Array){eachfn.map(tasks,function(fn,callback){if(fn){fn(function(err){var args=Array.prototype.slice.call(arguments,1);if(args.length<=1){args=args[0]}callback.call(null,err,args)})}},callback)}else{var results={};eachfn.each(_keys(tasks),function(k,callback){tasks[k](function(err){var args=Array.prototype.slice.call(arguments,1);if(args.length<=1){args=args[0]}results[k]=args;callback(err)})},function(err){callback(err,results)})}};async.parallel=function(tasks,callback){_parallel({map:async.map,each:async.each},tasks,callback)};async.parallelLimit=function(tasks,limit,callback){_parallel({map:_mapLimit(limit),each:_eachLimit(limit)},tasks,callback)};async.series=function(tasks,callback){callback=callback||function(){};if(tasks.constructor===Array){async.mapSeries(tasks,function(fn,callback){if(fn){fn(function(err){var args=Array.prototype.slice.call(arguments,1);if(args.length<=1){args=args[0]}callback.call(null,err,args)})}},callback)}else{var results={};async.eachSeries(_keys(tasks),function(k,callback){tasks[k](function(err){var args=Array.prototype.slice.call(arguments,1);if(args.length<=1){args=args[0]}results[k]=args;callback(err)})},function(err){callback(err,results)})}};async.iterator=function(tasks){var makeCallback=function(index){var fn=function(){if(tasks.length){tasks[index].apply(null,arguments)}return fn.next()};fn.next=function(){return index<tasks.length-1?makeCallback(index+1):null};return fn};return makeCallback(0)};async.apply=function(fn){var args=Array.prototype.slice.call(arguments,1);return function(){return fn.apply(null,args.concat(Array.prototype.slice.call(arguments)))}};var _concat=function(eachfn,arr,fn,callback){var r=[];eachfn(arr,function(x,cb){fn(x,function(err,y){r=r.concat(y||[]);cb(err)})},function(err){callback(err,r)})};async.concat=doParallel(_concat);async.concatSeries=doSeries(_concat);async.whilst=function(test,iterator,callback){if(test()){iterator(function(err){if(err){return callback(err)}async.whilst(test,iterator,callback)})}else{callback()}};async.doWhilst=function(iterator,test,callback){iterator(function(err){if(err){return callback(err)}if(test()){async.doWhilst(iterator,test,callback)}else{callback()}})};async.until=function(test,iterator,callback){if(!test()){iterator(function(err){if(err){return callback(err)}async.until(test,iterator,callback)})}else{callback()}};async.doUntil=function(iterator,test,callback){iterator(function(err){if(err){return callback(err)}if(!test()){async.doUntil(iterator,test,callback)}else{callback()}})};async.queue=function(worker,concurrency){if(concurrency===undefined){concurrency=1}function _insert(q,data,pos,callback){if(data.constructor!==Array){data=[data]
@@ -14693,6 +15059,7 @@ Other than that, feel free to enjoy the application!
     var prototype = extend$((import$(Application, superclass).displayName = 'Application', Application), superclass).prototype, constructor = Application;
     function Application(){
       var this$ = this instanceof ctor$ ? this : new ctor$;
+      this$.hookKeyboard = bind$(this$, 'hookKeyboard', prototype);
       this$.loadApplication = bind$(this$, 'loadApplication', prototype);
       this$.fixStylesheets = bind$(this$, 'fixStylesheets', prototype);
       this$.firstTimeInclude = bind$(this$, 'firstTimeInclude', prototype);
@@ -14701,11 +15068,11 @@ Other than that, feel free to enjoy the application!
       this$.firstTimeInclude();
       this$.loadLibs();
       this$.fixStylesheets();
-      window.Loading = new (DepMan.helper("Loading"))();
-      this$.continueLoad();
+      window.iTTransfer = new (DepMan.helper("DataTransfer"))(this$.continueLoad);
       return this$;
     } function ctor$(){} ctor$.prototype = prototype;
     prototype.continueLoad = function(){
+      DepMan.helper("Modals");
       return this.loadApplication();
     };
     prototype.baseSetup = function(){
@@ -14760,11 +15127,292 @@ Other than that, feel free to enjoy the application!
     };
     prototype.loadApplication = function(){
       var ref$;
-      return ref$ = DepMan.helper("Notification"), window.Notification = ref$[0], window.Toast = ref$[1], ref$;
+      ref$ = DepMan.helper("Notification"), window.iTNotification = ref$[0], window.iTToast = ref$[1];
+      window.iTLock = new (DepMan.helper("Lock"));
+      window.iTStateMachine = new (DepMan.helper("StateMachine"));
+      return this.hookKeyboard();
+    };
+    prototype.hookKeyboard = function(){
+      var key;
+      key = Tester.mac ? "cmd" : "ctrl";
+      return jwerty.key(key + "+shift+alt+u", iTLock.unlock);
     };
     return Application;
   }(IS.Object));
   module.exports = Application;
+  function bind$(obj, key, target){
+    return function(){ return (target || obj)[key].apply(obj, arguments) };
+  }
+  function extend$(sub, sup){
+    function fun(){} fun.prototype = (sub.superclass = sup).prototype;
+    (sub.prototype = new fun).constructor = sub;
+    if (typeof sup.extended == 'function') sup.extended(sub);
+    return sub;
+  }
+  function import$(obj, src){
+    var own = {}.hasOwnProperty;
+    for (var key in src) if (own.call(src, key)) obj[key] = src[key];
+    return obj;
+  }
+}).call(this);
+}, "classes/controllers/Menu": function(exports, require, module) {(function(){
+  var MenuController;
+  MenuController = (function(superclass){
+    var prototype = extend$((import$(MenuController, superclass).displayName = 'MenuController', MenuController), superclass).prototype, constructor = MenuController;
+    function MenuController(){
+      var this$ = this instanceof ctor$ ? this : new ctor$;
+      this$.destroy = bind$(this$, 'destroy', prototype);
+      this$.transfer = bind$(this$, 'transfer', prototype);
+      this$.query = bind$(this$, 'query', prototype);
+      this$.initTransfers = bind$(this$, 'initTransfers', prototype);
+      this$.releaseHeatmap = bind$(this$, 'releaseHeatmap', prototype);
+      this$.log("Menu Controller Created");
+      this$.placeholder = document.createElement("div");
+      this$.placeholder.innerHTML = DepMan.render("menu");
+      document.body.appendChild(this$.placeholder);
+      $('body').addClass("itmenuactive");
+      ['click', 'hover', 'move'].map(function(it){
+        return $("#" + it + "-heat").click(function(e){
+          this$.log("Should start " + it + "-heat");
+          this$.releaseHeatmap();
+          return this$.heatmap = new (DepMan.renderer("HeatMap"))(it);
+        });
+      });
+      $('#combined-heat').click(function(it){
+        this$.releaseHeatmap();
+        return this$.heatmap = new (DepMan.renderer("HeatMapCombined"))(it);
+      });
+      $('#remove-heat').click(function(){
+        return this$.releaseHeatmap();
+      });
+      this$.scrollAverage = $('#scroll-average span');
+      DepMan.helper("EncodingUtils");
+      DepMan.helper("DataTransfer");
+      this$.grid = new (DepMan.model("grid"));
+      this$.initTransfers();
+      return this$;
+    } function ctor$(){} ctor$.prototype = prototype;
+    prototype.releaseHeatmap = function(){
+      var ref$;
+      if (this.heatmap) {
+        this.heatmap.destroy();
+        return ref$ = this.heatmap, delete this.heatmap, ref$;
+      }
+    };
+    prototype.initTransfers = function(){
+      this.interval = setInterval(this.query, 1000);
+      return iTTransfer.socket.on("receiveData", this.transfer);
+    };
+    prototype.query = function(){
+      return iTTransfer.socket.emit("requestData");
+    };
+    prototype.transfer = function(it){
+      var data, sortable, key, ref$, value;
+      if (it.data !== "404") {
+        data = Utils.decodeData(it.data);
+        if (this.heatmap) {
+          this.heatmap.sequence(data);
+        }
+        sortable = [];
+        for (key in ref$ = data.scroll) {
+          value = ref$[key];
+          key = key.split(",");
+          sortable.push([key[0], key[1], value]);
+        }
+        sortable.sort(function(a, b){
+          return b[2] - a[2];
+        });
+        return this.scrollAverage.html(parseInt(this.grid.untranslateScroll(sortable[0]).x / document.body.scrollHeight * 100));
+      }
+    };
+    prototype.destroy = function(){
+      var ref$;
+      document.body.removeChild(this.placeholder);
+      $('body').removeClass('itmenuactive');
+      this.releaseHeatmap();
+      clearInterval(this.interval);
+      iTTransfer.socket.removeAllListeners("receiveData");
+      this.grid.destroy();
+      return ref$ = this.grid, delete this.grid, ref$;
+    };
+    return MenuController;
+  }(IS.Object));
+  module.exports = MenuController;
+  function bind$(obj, key, target){
+    return function(){ return (target || obj)[key].apply(obj, arguments) };
+  }
+  function extend$(sub, sup){
+    function fun(){} fun.prototype = (sub.superclass = sup).prototype;
+    (sub.prototype = new fun).constructor = sub;
+    if (typeof sup.extended == 'function') sup.extended(sub);
+    return sub;
+  }
+  function import$(obj, src){
+    var own = {}.hasOwnProperty;
+    for (var key in src) if (own.call(src, key)) obj[key] = src[key];
+    return obj;
+  }
+}).call(this);
+}, "classes/controllers/Recorder": function(exports, require, module) {(function(){
+  var Recorder;
+  Recorder = (function(superclass){
+    var prototype = extend$((import$(Recorder, superclass).displayName = 'Recorder', Recorder), superclass).prototype, constructor = Recorder;
+    function Recorder(){
+      var this$ = this instanceof ctor$ ? this : new ctor$;
+      this$.destroy = bind$(this$, 'destroy', prototype);
+      this$.click = bind$(this$, 'click', prototype);
+      this$.scroll = bind$(this$, 'scroll', prototype);
+      this$.move = bind$(this$, 'move', prototype);
+      this$.normalize = bind$(this$, 'normalize', prototype);
+      this$.hookEvents = bind$(this$, 'hookEvents', prototype);
+      this$.log("Initializing Recorder");
+      this$.grid = new (DepMan.model("grid"));
+      this$.buffer = new (DepMan.model("buffer"));
+      this$.hookEvents();
+      return this$;
+    } function ctor$(){} ctor$.prototype = prototype;
+    prototype.hookEvents = function(){
+      window.addEventListener("mousemove", this.move);
+      window.addEventListener("touchmove", this.move);
+      window.addEventListener("scroll", this.scroll);
+      return window.addEventListener("click", this.click);
+    };
+    prototype.normalize = function(it){
+      var ref$;
+      return ((ref$ = it.touches) != null ? ref$[0] : void 8) || it;
+    };
+    prototype.move = function(it){
+      var point, group, this$ = this;
+      if (this.timer) {
+        if (this.waitCount) {
+          this.buffer.queue('hover', this.lastPos, this.waitCount);
+          clearInterval(this.timer);
+          delete this.waitCount;
+        } else {
+          clearTimeout(this.timer);
+        }
+      }
+      point = this.normalize(it);
+      group = this.grid.translatePoint({
+        x: point.clientX + window.scrollX,
+        y: point.clientY + window.scrollY
+      });
+      this.lastPos = group;
+      this.buffer.queue('move', this.lastPos);
+      return this.timer = setTimeout(function(){
+        var count;
+        this$.waitCount = 1;
+        count = function(){
+          return this$.waitCount++;
+        };
+        return this$.timer = setInterval(count, 500);
+      }, 50);
+    };
+    prototype.scroll = function(it){
+      var point, group;
+      point = this.normalize(it);
+      group = this.grid.translateScroll();
+      return this.buffer.queue('scroll', group);
+    };
+    prototype.click = function(it){
+      var point, group;
+      point = this.normalize(it);
+      group = this.grid.translatePoint({
+        x: point.clientX + window.scrollX,
+        y: point.clientY + window.scrollY
+      });
+      return this.buffer.queue('click', group);
+    };
+    prototype.destroy = function(){
+      this.log("Destroying");
+      this.grid.destroy();
+      delete this.grid;
+      this.buffer.destroy();
+      delete this.buffer;
+      window.removeEventListener("mousemove", this.move);
+      window.removeEventListener("touchmove", this.move);
+      window.removeEventListener("scroll", this.scroll);
+      return window.removeEventListener("click", this.click);
+    };
+    return Recorder;
+  }(IS.Object));
+  module.exports = Recorder;
+  function bind$(obj, key, target){
+    return function(){ return (target || obj)[key].apply(obj, arguments) };
+  }
+  function extend$(sub, sup){
+    function fun(){} fun.prototype = (sub.superclass = sup).prototype;
+    (sub.prototype = new fun).constructor = sub;
+    if (typeof sup.extended == 'function') sup.extended(sub);
+    return sub;
+  }
+  function import$(obj, src){
+    var own = {}.hasOwnProperty;
+    for (var key in src) if (own.call(src, key)) obj[key] = src[key];
+    return obj;
+  }
+}).call(this);
+}, "classes/controllers/Viewer": function(exports, require, module) {(function(){
+  var Viewer;
+  Viewer = (function(superclass){
+    var prototype = extend$((import$(Viewer, superclass).displayName = 'Viewer', Viewer), superclass).prototype, constructor = Viewer;
+    function Viewer(){
+      var this$ = this instanceof ctor$ ? this : new ctor$;
+      this$.destroy = bind$(this$, 'destroy', prototype);
+      this$.log("Viewer Created");
+      this$.menu = new (DepMan.controller("Menu"))();
+      return this$;
+    } function ctor$(){} ctor$.prototype = prototype;
+    prototype.destroy = function(){
+      var ref$;
+      this.menu.destroy();
+      return ref$ = this.menu, delete this.menu, ref$;
+    };
+    return Viewer;
+  }(IS.Object));
+  module.exports = Viewer;
+  function bind$(obj, key, target){
+    return function(){ return (target || obj)[key].apply(obj, arguments) };
+  }
+  function extend$(sub, sup){
+    function fun(){} fun.prototype = (sub.superclass = sup).prototype;
+    (sub.prototype = new fun).constructor = sub;
+    if (typeof sup.extended == 'function') sup.extended(sub);
+    return sub;
+  }
+  function import$(obj, src){
+    var own = {}.hasOwnProperty;
+    for (var key in src) if (own.call(src, key)) obj[key] = src[key];
+    return obj;
+  }
+}).call(this);
+}, "classes/helpers/DataTransfer": function(exports, require, module) {(function(){
+  var DataTransfer;
+  DataTransfer = (function(superclass){
+    var prototype = extend$((import$(DataTransfer, superclass).displayName = 'DataTransfer', DataTransfer), superclass).prototype, constructor = DataTransfer;
+    function DataTransfer(cb){
+      var script, this$ = this instanceof ctor$ ? this : new ctor$;
+      this$.send = bind$(this$, 'send', prototype);
+      script = document.createElement("script");
+      script.src = "http://localhost:80/socket.io/socket.io.js";
+      script.onload = function(){
+        this$.socket = io.connect("http://localhost:80/");
+        this$.socket.emit("begin", {
+          host: window.location.toString().substr(7)
+        });
+        return typeof cb === 'function' ? cb() : void 8;
+      };
+      this$.log(script);
+      document.body.appendChild(script);
+      return this$;
+    } function ctor$(){} ctor$.prototype = prototype;
+    prototype.send = function(it){
+      var ref$;
+      return (ref$ = this.socket) != null ? ref$.emit("sendData", it) : void 8;
+    };
+    return DataTransfer;
+  }(IS.Object));
+  module.exports = DataTransfer;
   function bind$(obj, key, target){
     return function(){ return (target || obj)[key].apply(obj, arguments) };
   }
@@ -14906,6 +15554,71 @@ Other than that, feel free to enjoy the application!
     var own = {}.hasOwnProperty;
     for (var key in src) if (own.call(src, key)) obj[key] = src[key];
     return obj;
+  }
+}).call(this);
+}, "classes/helpers/EncodingUtils": function(exports, require, module) {(function(){
+  var Utils;
+  Utils = (function(){
+    Utils.displayName = 'Utils';
+    var prototype = Utils.prototype, constructor = Utils;
+    Utils.decodeData = function(data){
+      var pieces, i$, len$, piece;
+      pieces = data.split("|");
+      data = {};
+      for (i$ = 0, len$ = pieces.length; i$ < len$; ++i$) {
+        piece = pieces[i$];
+        if (piece.indexOf("<HOVER>") === 0) {
+          data.hover = Utils.decodePiece(piece.substr(7));
+        }
+        if (piece.indexOf("<SCROLL>") === 0) {
+          data.scroll = Utils.decodePiece(piece.substr(8));
+        }
+        if (piece.indexOf("<CLICK>") === 0) {
+          data.click = Utils.decodePiece(piece.substr(7));
+        }
+        if (piece.indexOf("<MOVE>") === 0) {
+          data.move = Utils.decodePiece(piece.substr(6));
+        }
+      }
+      return data;
+    };
+    Utils.decodePiece = function(data){
+      var pieces, i$, len$, piece, ref$, key, value;
+      if (data === "") {
+        return;
+      }
+      pieces = data.split(";");
+      data = {};
+      for (i$ = 0, len$ = pieces.length; i$ < len$; ++i$) {
+        piece = pieces[i$];
+        ref$ = piece.split(":"), key = ref$[0], value = ref$[1];
+        data[key] = parseInt(value);
+      }
+      return data;
+    };
+    Utils.encodeData = function(data){
+      return "<HOVER>" + Utils.encodePiece(data.hover) + "|<SCROLL>" + Utils.encodePiece(data.scroll) + "|<CLICK>" + Utils.encodePiece(data.click) + "|<MOVE>" + Utils.encodePiece(data.move);
+    };
+    Utils.encodePiece = function(data){
+      var obj, key, value;
+      obj = [];
+      for (key in data) {
+        value = data[key];
+        if (!!value) {
+          obj.push(key + ":" + value);
+        }
+      }
+      return obj.join(";");
+    };
+    function Utils(){}
+    return Utils;
+  }());
+  module.exports = Utils;
+  if (typeof root != 'undefined' && root !== null) {
+    root.Utils = Utils;
+  }
+  if (typeof window != 'undefined' && window !== null) {
+    window.Utils = Utils;
   }
 }).call(this);
 }, "classes/helpers/Language": function(exports, require, module) {(function(){
@@ -15067,39 +15780,246 @@ Other than that, feel free to enjoy the application!
     return obj;
   }
 }).call(this);
+}, "classes/helpers/Lock": function(exports, require, module) {(function(){
+  var Lock;
+  Lock = (function(superclass){
+    var prototype = extend$((import$(Lock, superclass).displayName = 'Lock', Lock), superclass).prototype, constructor = Lock;
+    function Lock(isLocked){
+      var this$ = this instanceof ctor$ ? this : new ctor$;
+      this$.isLocked = isLocked != null ? isLocked : true;
+      this$.lock = bind$(this$, 'lock', prototype);
+      this$.unlock = bind$(this$, 'unlock', prototype);
+      return this$;
+    } function ctor$(){} ctor$.prototype = prototype;
+    prototype.unlock = function(){
+      var id, this$ = this;
+      if (this.isLocked) {
+        Modal.show({
+          title: "Unlock the application.",
+          content: DepMan.render("unlock")
+        });
+        $('#unlockpassword').change(Modal.hide);
+        $('#unlockbutton').click(Modal.hide);
+        $('#unlockpassword').focus();
+        return id = Modal.subscribe("prehide", function(){
+          var val, div;
+          val = $('#unlockpassword').val();
+          if (val === 'pulamea') {
+            this$.isLocked = false;
+          } else {
+            alert("Wrong answer!");
+          }
+          Modal.unsubscribe(id);
+          div = document.createElement("div");
+          div.id = "unlockedplaceholder";
+          div.innerHTML = "<i class='icon-eye-open'></i>";
+          return document.body.appendChild(div);
+        });
+      } else {
+        return this.lock();
+      }
+    };
+    prototype.lock = function(){
+      var div;
+      this.isLocked = true;
+      div = $('#unlockedplaceholder')[0];
+      if (div) {
+        return div.remove();
+      }
+    };
+    return Lock;
+  }(IS.Object));
+  module.exports = Lock;
+  function bind$(obj, key, target){
+    return function(){ return (target || obj)[key].apply(obj, arguments) };
+  }
+  function extend$(sub, sup){
+    function fun(){} fun.prototype = (sub.superclass = sup).prototype;
+    (sub.prototype = new fun).constructor = sub;
+    if (typeof sup.extended == 'function') sup.extended(sub);
+    return sub;
+  }
+  function import$(obj, src){
+    var own = {}.hasOwnProperty;
+    for (var key in src) if (own.call(src, key)) obj[key] = src[key];
+    return obj;
+  }
+}).call(this);
+}, "classes/helpers/Modals": function(exports, require, module) {(function(){
+  var STATES, States, ModalController, Controller;
+  STATES = ['closed', 'normal', 'fullscreen'];
+  States = new IS.Enum(STATES);
+  ModalController = (function(superclass){
+    var prototype = extend$((import$(ModalController, superclass).displayName = 'ModalController', ModalController), superclass).prototype, constructor = ModalController;
+    function ModalController(){
+      var this$ = this instanceof ctor$ ? this : new ctor$;
+      this$.safeApply = bind$(this$, 'safeApply', prototype);
+      this$.set = bind$(this$, 'set', prototype);
+      this$.hide = bind$(this$, 'hide', prototype);
+      this$.show = bind$(this$, 'show', prototype);
+      this$.toggle = bind$(this$, 'toggle', prototype);
+      this$.hookKeyboard = bind$(this$, 'hookKeyboard', prototype);
+      this$.setAttributes = bind$(this$, 'setAttributes', prototype);
+      this$.renderModal = bind$(this$, 'renderModal', prototype);
+      this$.grabControls = bind$(this$, 'grabControls', prototype);
+      this$.state = States.closed;
+      this$.setAttributes();
+      this$.renderModal();
+      this$.hookKeyboard();
+      this$.grabControls();
+      return this$;
+    } function ctor$(){} ctor$.prototype = prototype;
+    prototype.grabControls = function(){
+      var this$ = this;
+      this.titlezone = $('#modal-title-area');
+      this.contentzone = $('#modal-content-area');
+      this.containerzone = $('#modal-window')[0];
+      $('#modal-close-button').click(function(){
+        return this$.hide();
+      });
+      return $('#modal-fullscreen-botton').click(function(){
+        this$.state = States.fullscreen;
+        return this$.safeApply();
+      });
+    };
+    prototype.renderModal = function(){
+      var div;
+      div = document.createElement('div');
+      div.innerHTML = DepMan.render("modal", {
+        States: States,
+        STATES: STATES
+      });
+      div.setAttribute('rel', "Modal Container");
+      div.setAttribute('id', 'modal-container');
+      return document.body.appendChild(div);
+    };
+    prototype.setAttributes = function(){
+      this.title = "Modal Window";
+      this.content = "Test Content";
+      return this.queue = {};
+    };
+    prototype.hookKeyboard = function(){
+      var this$ = this;
+      return jwerty.key("esc", function(){
+        return this$.hide();
+      });
+    };
+    prototype.toggle = function(){
+      if (this.state === States.normal) {
+        this.state = States.fullscreen;
+      } else {
+        this.state = States.normal;
+      }
+      return this.safeApply();
+    };
+    prototype.show = function(data, timeout){
+      data == null && (data = {
+        title: "No Title",
+        content: "No Content"
+      });
+      this.publish("preshow");
+      this.title = data.title || null;
+      this.content = data.content || null;
+      if (window.innerWidth <= 320) {
+        this.state = States.fullscreen;
+      } else {
+        this.state = States.normal;
+      }
+      if (timeout) {
+        setTimeout(this.hide, timeout);
+      }
+      $('body').addClass('modal-active');
+      this.publish("show");
+      return this.safeApply();
+    };
+    prototype.hide = function(){
+      this.publish("prehide");
+      this.state = States.closed;
+      $('body').removeClass('modal-active');
+      return this.safeApply().publish("hide");
+    };
+    prototype.set = function(key, value){
+      if (key == 'title' || key == 'content') {
+        this[key] = value;
+        return this.safeApply();
+      }
+    };
+    prototype.safeApply = function(){
+      this.titlezone.html(this.title);
+      this.contentzone.html(this.content);
+      this.containerzone.className = STATES[this.state];
+      return this;
+    };
+    ModalController.include(IS.Modules.Observer);
+    return ModalController;
+  }(IS.Object));
+  Controller = new ModalController();
+  window.Modal = {
+    set: function(){
+      return Controller.edit.apply(Controller, arguments);
+    },
+    show: function(){
+      return Controller.show.apply(Controller, arguments);
+    },
+    hide: function(){
+      return Controller.hide.apply(Controller, arguments);
+    },
+    subscribe: function(){
+      return Controller.subscribe.apply(Controller, arguments);
+    },
+    unsubscribe: function(){
+      return Controller.unsubscribe.apply(Controller, arguments);
+    }
+  };
+  module.exports = Controller;
+  function bind$(obj, key, target){
+    return function(){ return (target || obj)[key].apply(obj, arguments) };
+  }
+  function extend$(sub, sup){
+    function fun(){} fun.prototype = (sub.superclass = sup).prototype;
+    (sub.prototype = new fun).constructor = sub;
+    if (typeof sup.extended == 'function') sup.extended(sub);
+    return sub;
+  }
+  function import$(obj, src){
+    var own = {}.hasOwnProperty;
+    for (var key in src) if (own.call(src, key)) obj[key] = src[key];
+    return obj;
+  }
+}).call(this);
 }, "classes/helpers/Notification": function(exports, require, module) {(function(){
-  var DRIVERS, Drivers, NotificationHelper, Helper, Toast, slice$ = [].slice, join$ = [].join;
+  var DRIVERS, Drivers, iTNotificationHelper, Helper, iTToast, slice$ = [].slice, join$ = [].join;
   DRIVERS = ['webkit', 'normal'];
   Drivers = new IS.Enum(DRIVERS);
-  NotificationHelper = (function(superclass){
-    var prototype = extend$((import$(NotificationHelper, superclass).displayName = 'NotificationHelper', NotificationHelper), superclass).prototype, constructor = NotificationHelper;
-    function NotificationHelper(){
+  iTNotificationHelper = (function(superclass){
+    var prototype = extend$((import$(iTNotificationHelper, superclass).displayName = 'iTNotificationHelper', iTNotificationHelper), superclass).prototype, constructor = iTNotificationHelper;
+    function iTNotificationHelper(){
       var handler, this$ = this instanceof ctor$ ? this : new ctor$;
       this$.toastNormal = bind$(this$, 'toastNormal', prototype);
       this$.toastWebkit = bind$(this$, 'toastWebkit', prototype);
       this$.toast = bind$(this$, 'toast', prototype);
       this$.timeout == null && (this$.timeout = 5000);
       this$.driver = DRIVERS.normal;
-      if (Tester['webkitNotifications']) {
+      if (Tester['webkitiTNotifications']) {
         if (!Tester['chrome.storage']) {
           handler = function(){
-            webkitNotifications.requestPermission();
+            webkitiTNotifications.requestPermission();
             return window.removeEventListener("click");
           };
           window.addEventListener("click", handler);
         }
         this$.driver = DRIVERS.webkit;
       }
-      this$.echo("Notification Helper Online, with driver : ", this$.drive, " and timeout : ", this$.timeout);
+      this$.echo("iTNotification Helper Online, with driver : ", this$.drive, " and timeout : ", this$.timeout);
       return this$;
     } function ctor$(){} ctor$.prototype = prototype;
     prototype.toast = function(title){
       var body;
-      title == null && (title = "Notification");
+      title == null && (title = "iTNotification");
       body = slice$.call(arguments, 1);
       switch (this.driver) {
       case Drivers.webkit:
-        if (webkitNotifications.checkPermission() === 0) {
+        if (webkitiTNotifications.checkPermission() === 0) {
           return this.toastWebkit(title, body);
         } else {
           return this.toastNormal(title, body);
@@ -15116,7 +16036,7 @@ Other than that, feel free to enjoy the application!
         item = body[i$];
         b += "\n" + item;
       }
-      notif = webkitNotifications.createNotification('icon.ico', title, b);
+      notif = webkitiTNotifications.createiTNotification('icon.ico', title, b);
       notif.ondisplay = function(ev){
         return setTimeout(function(){
           return ev.currentTarget.cancel();
@@ -15141,11 +16061,100 @@ Other than that, feel free to enjoy the application!
         return alert(b);
       }
     };
-    return NotificationHelper;
+    return iTNotificationHelper;
   }(IS.Object));
-  Helper = new NotificationHelper();
-  Toast = Helper.toast;
-  module.exports = [Helper, Toast];
+  Helper = new iTNotificationHelper();
+  iTToast = Helper.toast;
+  module.exports = [Helper, iTToast];
+  function bind$(obj, key, target){
+    return function(){ return (target || obj)[key].apply(obj, arguments) };
+  }
+  function extend$(sub, sup){
+    function fun(){} fun.prototype = (sub.superclass = sup).prototype;
+    (sub.prototype = new fun).constructor = sub;
+    if (typeof sup.extended == 'function') sup.extended(sub);
+    return sub;
+  }
+  function import$(obj, src){
+    var own = {}.hasOwnProperty;
+    for (var key in src) if (own.call(src, key)) obj[key] = src[key];
+    return obj;
+  }
+}).call(this);
+}, "classes/helpers/StateMachine": function(exports, require, module) {(function(){
+  var STATES, States, StateMachine;
+  STATES = ['view', 'record'];
+  States = new IS.Enum(STATES);
+  StateMachine = (function(superclass){
+    var prototype = extend$((import$(StateMachine, superclass).displayName = 'StateMachine', StateMachine), superclass).prototype, constructor = StateMachine;
+    function StateMachine(){
+      var key, this$ = this instanceof ctor$ ? this : new ctor$;
+      this$.deactivateStaterecord = bind$(this$, 'deactivateStaterecord', prototype);
+      this$.activateStaterecord = bind$(this$, 'activateStaterecord', prototype);
+      this$.deactivateStateview = bind$(this$, 'deactivateStateview', prototype);
+      this$.activateStateview = bind$(this$, 'activateStateview', prototype);
+      this$.toggleState = bind$(this$, 'toggleState', prototype);
+      this$.otherState = bind$(this$, 'otherState', prototype);
+      this$.deactivateState = bind$(this$, 'deactivateState', prototype);
+      this$.activateState = bind$(this$, 'activateState', prototype);
+      this$.activateState(States.view);
+      key = Tester.mac ? "cmd" : "ctrl";
+      jwerty.key(key + "+shift+alt+tab", this$.toggleState);
+      return this$;
+    } function ctor$(){} ctor$.prototype = prototype;
+    prototype.activateState = function(state){
+      if ((STATES[state] != null) !== false) {
+        this["activateState" + STATES[state]]();
+        return this.state = state;
+      }
+    };
+    prototype.deactivateState = function(state){
+      state == null && (state = this.state);
+      if ((STATES[state] != null) !== false) {
+        this["deactivateState" + STATES[state]]();
+        return this.state = null;
+      }
+    };
+    prototype.otherState = function(state){
+      switch (state) {
+      case States.view:
+        return States.record;
+      default:
+        return States.view;
+      }
+    };
+    prototype.toggleState = function(){
+      var state;
+      if (!iTLock.isLocked) {
+        state = this.state;
+        this.deactivateState();
+        return this.activateState(this.otherState(state));
+      }
+    };
+    prototype.activateStateview = function(){
+      this.log("Activating View State");
+      return window.iTViewer = new (DepMan.controller("Viewer"));
+    };
+    prototype.deactivateStateview = function(){
+      var ref$;
+      this.log("Deactivating View State");
+      window.iTViewer.destroy();
+      return ref$ = window.iTViewer, delete window.iTViewer, ref$;
+    };
+    prototype.activateStaterecord = function(){
+      this.log("Activating Record State");
+      return window.iTRecorder = new (DepMan.controller("Recorder"));
+    };
+    prototype.deactivateStaterecord = function(){
+      var ref$;
+      this.log("Deactivating Record State");
+      window.iTRecorder.destroy();
+      return ref$ = window.iTRecorder, delete window.iTRecorder, ref$;
+    };
+    StateMachine.include(IS.Modules.Observer);
+    return StateMachine;
+  }(IS.Object));
+  module.exports = StateMachine;
   function bind$(obj, key, target){
     return function(){ return (target || obj)[key].apply(obj, arguments) };
   }
@@ -15305,8 +16314,8 @@ Other than that, feel free to enjoy the application!
     "chrome.storage": function() {
       return (typeof chrome !== "undefined" && chrome !== null) && (chrome.storage != null);
     },
-    "webkitNotifications": function() {
-      return typeof webkitNotifications !== "undefined" && webkitNotifications !== null;
+    "webkitiTNotifications": function() {
+      return typeof webkitiTNotifications !== "undefined" && webkitiTNotifications !== null;
     },
     "mac": function() {
       return (navigator.userAgent.indexOf("Macintosh")) >= 0;
@@ -27668,6 +28677,147 @@ var require=function(n,r,t){function e(t,i){if(!r[t]){if(!n[t]){var o=typeof req
 prelude = root.prelude = require( "prelude-ls" );
 return prelude;
 })(window)
+}, "classes/models/buffer": function(exports, require, module) {(function(){
+  var Buffer;
+  Buffer = (function(superclass){
+    var prototype = extend$((import$(Buffer, superclass).displayName = 'Buffer', Buffer), superclass).prototype, constructor = Buffer;
+    function Buffer(){
+      var this$ = this instanceof ctor$ ? this : new ctor$;
+      this$.destroy = bind$(this$, 'destroy', prototype);
+      this$.reset = bind$(this$, 'reset', prototype);
+      this$.flush = bind$(this$, 'flush', prototype);
+      this$.queue = bind$(this$, 'queue', prototype);
+      DepMan.helper("DataTransfer");
+      DepMan.helper("EncodingUtils");
+      this$.reset();
+      this$.timer = setInterval(this$.flush, 3000);
+      return this$;
+    } function ctor$(){} ctor$.prototype = prototype;
+    prototype.queue = function(what, data, step){
+      var ref$;
+      step == null && (step = 1);
+      (ref$ = this.buffers[what])[data] == null && (ref$[data] = 0);
+      return this.buffers[what][data] += step;
+    };
+    prototype.flush = function(){
+      var data;
+      data = Utils.encodeData({
+        move: this.buffers.move,
+        hover: this.buffers.hover,
+        scroll: this.buffers.scroll,
+        click: this.buffers.click
+      });
+      this.log(data);
+      iTTransfer.send(data);
+      return this.reset();
+    };
+    prototype.reset = function(){
+      return this.buffers = {
+        move: {},
+        scroll: {},
+        click: {},
+        hover: {}
+      };
+    };
+    prototype.destroy = function(){
+      this.flush();
+      return clearInterval(this.timer);
+    };
+    return Buffer;
+  }(IS.Object));
+  module.exports = Buffer;
+  function bind$(obj, key, target){
+    return function(){ return (target || obj)[key].apply(obj, arguments) };
+  }
+  function extend$(sub, sup){
+    function fun(){} fun.prototype = (sub.superclass = sup).prototype;
+    (sub.prototype = new fun).constructor = sub;
+    if (typeof sup.extended == 'function') sup.extended(sub);
+    return sub;
+  }
+  function import$(obj, src){
+    var own = {}.hasOwnProperty;
+    for (var key in src) if (own.call(src, key)) obj[key] = src[key];
+    return obj;
+  }
+}).call(this);
+}, "classes/models/grid": function(exports, require, module) {(function(){
+  var Grid;
+  Grid = (function(superclass){
+    var prototype = extend$((import$(Grid, superclass).displayName = 'Grid', Grid), superclass).prototype, constructor = Grid;
+    prototype.translatePoint = function(it){
+      return [this.formPoint(it.x - window.innerWidth / 2), this.formPoint(it.y)];
+    };
+    prototype.translateScroll = function(){
+      return [this.formScroll(window.scrollY), this.formScroll(window.scrollX)];
+    };
+    prototype.formPoint = function(it){
+      return this.form(it, 50);
+    };
+    prototype.formScroll = function(it){
+      return this.form(it, 150);
+    };
+    prototype.form = function(obj, margin){
+      return parseInt(obj / margin) + (obj % margin !== 0);
+    };
+    prototype.deform = function(obj, margin){
+      return {
+        x: obj.x * margin + window.innerWidth / 2,
+        y: obj.y * margin
+      };
+    };
+    prototype.deformPoint = function(it){
+      return this.deform(it, 50);
+    };
+    prototype.deformScroll = function(it){
+      return this.deform(it, 150);
+    };
+    prototype.untranslatePoint = function(it){
+      it = it.split(",");
+      return this.deformPoint({
+        x: it[0],
+        y: it[1]
+      });
+    };
+    prototype.untranslateScroll = function(it){
+      return this.deformScroll({
+        x: it[0],
+        y: it[1]
+      });
+    };
+    prototype.destroy = function(){};
+    function Grid(){
+      this.destroy = bind$(this, 'destroy', prototype);
+      this.untranslateScroll = bind$(this, 'untranslateScroll', prototype);
+      this.untranslatePoint = bind$(this, 'untranslatePoint', prototype);
+      this.deformScroll = bind$(this, 'deformScroll', prototype);
+      this.deformPoint = bind$(this, 'deformPoint', prototype);
+      this.deform = bind$(this, 'deform', prototype);
+      this.form = bind$(this, 'form', prototype);
+      this.formScroll = bind$(this, 'formScroll', prototype);
+      this.formPoint = bind$(this, 'formPoint', prototype);
+      this.translateScroll = bind$(this, 'translateScroll', prototype);
+      this.translatePoint = bind$(this, 'translatePoint', prototype);
+      Grid.superclass.apply(this, arguments);
+    }
+    return Grid;
+  }(IS.Object));
+  module.exports = Grid;
+  function bind$(obj, key, target){
+    return function(){ return (target || obj)[key].apply(obj, arguments) };
+  }
+  function extend$(sub, sup){
+    function fun(){} fun.prototype = (sub.superclass = sup).prototype;
+    (sub.prototype = new fun).constructor = sub;
+    if (typeof sup.extended == 'function') sup.extended(sub);
+    return sub;
+  }
+  function import$(obj, src){
+    var own = {}.hasOwnProperty;
+    for (var key in src) if (own.call(src, key)) obj[key] = src[key];
+    return obj;
+  }
+}).call(this);
 }, "classes/renderers/Base": function(exports, require, module) {(function(){
   var BaseFrameBuffer;
   Object.getPrototypeOf(document.createElement("canvas").getContext("2d")).fillRectR = function(x, y, w, h, r){
@@ -27709,13 +28859,6 @@ return prelude;
     function BaseFrameBuffer(buffer){
       var this$ = this instanceof ctor$ ? this : new ctor$;
       this$.buffer = buffer;
-      this$.endResize = bind$(this$, 'endResize', prototype);
-      this$.startResize = bind$(this$, 'startResize', prototype);
-      this$.endDraw = bind$(this$, 'endDraw', prototype);
-      this$.startDraw = bind$(this$, 'startDraw', prototype);
-      this$.scan = bind$(this$, 'scan', prototype);
-      this$.getShadowColor = bind$(this$, 'getShadowColor', prototype);
-      this$.drawShadow = bind$(this$, 'drawShadow', prototype);
       this$.reset = bind$(this$, 'reset', prototype);
       if (!this$.buffer) {
         this$.buffer = document.createElement("canvas");
@@ -27728,49 +28871,159 @@ return prelude;
     prototype.reset = function(){
       return this.buffer.width = this.buffer.width;
     };
-    prototype.drawShadow = function(){
-      this.sbuffer.width = this.sbuffer.width;
-      this.getShadowColor();
-      this.scontext.fillStyle = this.scolor;
-      return this.scontext.fillRect(0, 0, this.sbuffer.width, this.sbuffer.height);
-    };
-    prototype.getShadowColor = function(){
-      var r, g, b, ref$, rest;
-      r = 0;
-      g = 0;
-      b = (((ref$ = this.node) != null ? ref$.$index : void 8) + 1) % 255;
-      rest = r / 255;
-      if (rest) {
-        g = rest % 255;
-        rest = rest / 255;
-        if (rest) {
-          r = rest % 255;
-        }
-      }
-      return this.scolor = "rgb(" + r + ", " + g + ", " + b + ")";
-    };
-    prototype.scan = function(it){
-      var rgb;
-      rgb = this.context.getImageData(it.x, it.y, 1, 1).data;
-      return rgb[0] * 255 * 255 + rgb[1] * 255 + rgb[2];
-    };
-    prototype.startDraw = function(){
-      return this.drawing = true;
-    };
-    prototype.endDraw = function(){
-      var ref$;
-      return ref$ = this.drawing, delete this.drawing, ref$;
-    };
-    prototype.startResize = function(){
-      return this.resizing = true;
-    };
-    prototype.endResize = function(){
-      var ref$;
-      return ref$ = this.resizing, delete this.resizing, ref$;
-    };
     return BaseFrameBuffer;
   }(IS.Object));
   module.exports = BaseFrameBuffer;
+  function bind$(obj, key, target){
+    return function(){ return (target || obj)[key].apply(obj, arguments) };
+  }
+  function extend$(sub, sup){
+    function fun(){} fun.prototype = (sub.superclass = sup).prototype;
+    (sub.prototype = new fun).constructor = sub;
+    if (typeof sup.extended == 'function') sup.extended(sub);
+    return sub;
+  }
+  function import$(obj, src){
+    var own = {}.hasOwnProperty;
+    for (var key in src) if (own.call(src, key)) obj[key] = src[key];
+    return obj;
+  }
+}).call(this);
+}, "classes/renderers/HeatMap": function(exports, require, module) {(function(){
+  var HeatMapRenderer;
+  HeatMapRenderer = (function(superclass){
+    var prototype = extend$((import$(HeatMapRenderer, superclass).displayName = 'HeatMapRenderer', HeatMapRenderer), superclass).prototype, constructor = HeatMapRenderer;
+    function HeatMapRenderer(prop){
+      var this$ = this instanceof ctor$ ? this : new ctor$;
+      this$.prop = prop;
+      this$.sequence = bind$(this$, 'sequence', prototype);
+      this$.resize = bind$(this$, 'resize', prototype);
+      this$.destroy = bind$(this$, 'destroy', prototype);
+      HeatMapRenderer.superclass.call(this$);
+      this$.log("Heatmap Created");
+      this$.buffer.id = "heatmap-canvas";
+      this$.grid = new (DepMan.model("grid"));
+      this$.resize();
+      window.addEventListener("resize", this$.resize);
+      document.body.appendChild(this$.buffer);
+      return this$;
+    } function ctor$(){} ctor$.prototype = prototype;
+    prototype.destroy = function(){
+      var ref$;
+      window.removeEventListener("resize", this.resize);
+      this.grid.destroy();
+      delete this.grid;
+      this.log(this.buffer);
+      document.body.removeChild(this.buffer);
+      return ref$ = this.buffer, delete this.buffer, ref$;
+    };
+    prototype.resize = function(){
+      this.buffer.width = document.body.scrollWidth;
+      return this.buffer.height = document.body.scrollHeight;
+    };
+    prototype.sequence = function(it){
+      var sortable, i$, len$, set, index, alphaDelta, results$ = [];
+      this.reset();
+      sortable = this.getSets(it);
+      this.color = {
+        r: 256,
+        g: 0,
+        b: 0
+      };
+      for (i$ = 0, len$ = sortable.length; i$ < len$; ++i$) {
+        set = sortable[i$];
+        index = this.grid.untranslatePoint(set[0]);
+        alphaDelta = this.color.r / 256 + this.color.g / 256 + this.color.b / 256;
+        this.context.fillStyle = "rgba(" + this.color.r + ", " + this.color.g + ", " + this.color.b + ", " + alphaDelta + ")";
+        this.context.fillRect(index.x, index.y, 50, 50);
+        if (this.color.r) {
+          this.color.r -= 30;
+          if (this.color.r <= 0) {
+            this.color.r = 0;
+            results$.push(this.color.g = 256);
+          }
+        } else {
+          if (this.color.g) {
+            this.color.g -= 30;
+            if (this.color.g <= 0) {
+              this.color.g = 0;
+              results$.push(this.color.b = 256);
+            }
+          } else {
+            results$.push(this.color.b -= 30);
+          }
+        }
+      }
+      return results$;
+    };
+    prototype.getSets = function(it){
+      var sortable, key, ref$, value;
+      sortable = [];
+      for (key in ref$ = it[this.prop]) {
+        value = ref$[key];
+        sortable.push([key, value]);
+      }
+      sortable.sort(function(a, b){
+        return b[1] - a[1];
+      });
+      return sortable;
+    };
+    return HeatMapRenderer;
+  }(DepMan.renderer("Base")));
+  module.exports = HeatMapRenderer;
+  function bind$(obj, key, target){
+    return function(){ return (target || obj)[key].apply(obj, arguments) };
+  }
+  function extend$(sub, sup){
+    function fun(){} fun.prototype = (sub.superclass = sup).prototype;
+    (sub.prototype = new fun).constructor = sub;
+    if (typeof sup.extended == 'function') sup.extended(sub);
+    return sub;
+  }
+  function import$(obj, src){
+    var own = {}.hasOwnProperty;
+    for (var key in src) if (own.call(src, key)) obj[key] = src[key];
+    return obj;
+  }
+}).call(this);
+}, "classes/renderers/HeatMapCombined": function(exports, require, module) {(function(){
+  var HeatMapCombined;
+  HeatMapCombined = (function(superclass){
+    var prototype = extend$((import$(HeatMapCombined, superclass).displayName = 'HeatMapCombined', HeatMapCombined), superclass).prototype, constructor = HeatMapCombined;
+    function HeatMapCombined(){
+      var this$ = this instanceof ctor$ ? this : new ctor$;
+      this$.passthrough = bind$(this$, 'passthrough', prototype);
+      this$.join = bind$(this$, 'join', prototype);
+      this$.getSets = bind$(this$, 'getSets', prototype);
+      HeatMapCombined.superclass.call(this$, "joined");
+      return this$;
+    } function ctor$(){} ctor$.prototype = prototype;
+    prototype.getSets = function(it){
+      var sets;
+      sets = this.join(it.move, it.click);
+      sets = this.join(sets, it.hover);
+      superclass.prototype.getSets.call(this, {
+        joined: sets
+      });
+      sets = this.passthrough(sets, it.scroll);
+      return sets;
+    };
+    prototype.join = function(a, b){
+      var key, value;
+      for (key in a) {
+        value = a[key];
+        if (b[key]) {
+          b[key] += a[key];
+        } else {
+          b[key] = a[key];
+        }
+      }
+      return b;
+    };
+    prototype.passthrough = function(sets, scrolls){};
+    return HeatMapCombined;
+  }(DepMan.renderer("HeatMap")));
+  module.exports = HeatMapCombined;
   function bind$(obj, key, target){
     return function(){ return (target || obj)[key].apply(obj, arguments) };
   }
@@ -27853,7 +29106,7 @@ return window.otherImports['roboto400'] = module.exports = item; }, "data/langua
 var item = JSON.parse("{\n}", function(key, value) { var v; try { v = eval(value) } catch(e) { v = value } return v;}); 
 return window.JSONImport['en-US'] = module.exports = item;}, "data/languages/ro-RO": function(exports, require, module) {if (!window.JSONImport) window.JSONImport = {}; 
 var item = JSON.parse("{\"English\":\"Engleză\",\"Romanian\":\"Română\",\"Document List\":\"Lista de Documente\",\"Connection Manager\":\"Manager de Conexiuni\",\"Your Client ID\":\"ID-ul Tău de Client\",\"Client ID to connect to\":\"ID-ul de Client la care să te conectezi\",\"General Application Settings\":\"Setări Generale ale Aplicației\",\"Activate the landing page\":\"Activează pagina de sosire\",\"Activate the help page\":\"Activează pagina de ajutor\",\"Select your language of choice\":\"Alege limba\",\"Experimental Features\":\"Lucruri Experimentale\",\"Activate a Toast\":\"Activează un mesaj\",\"Activate a Toast (Modal Override)\":\"Activează un mesaj (modal)\",\"Open a modal window\":\"Activează o fereastră modală\",\"Launch Application\":\"Lansează Aplicația\",\"Install application in Chrome\":\"Instalează aplicația în Chrome\",\"Install application in Firefox\":\"Instalează aplicația în Firefox\",\"Install application in Windows 8\":\"Instalează aplicația în Windows 8\",\"Install application in Opera New\":\"Instalează aplicația în Opera New\",\"Relation between this node and the previous.\":\"Relația dintre acest nod și cel anterior\",\"Notes associated\":\"Notițe asociate\",\"Node Text\":\"Textul Nodului\",\"The text of the node\":\"Textul Nodului\",\"Is this node checked?\":\"Este acest nod bifat?\",\"Relation with its parent\":\"Relația cu părintele său\",\"Add a new node\":\"Adaugă un nod nou\",\"Remove this node\":\"Sterge acest nod\",\"Read More\":\"Citește mai mult\",\"Reconnect\":\"Reconectează-te\",\"Open the Loading Screen\":\"Deschide ecranul de încărcare\"}", function(key, value) { var v; try { v = eval(value) } catch(e) { v = value } return v;}); 
-return window.JSONImport['ro-RO'] = module.exports = item;}, "data/stylesheets/font-awesome": function(exports, require, module) {s = document.createElement('style'); s.innerHTML = "/*!\n *  Font Awesome 3.2.1\n *  the iconic font designed for Bootstrap\n *  ------------------------------------------------------------------------------\n *  The full suite of pictographic icons, examples, and documentation can be\n *  found at http://fontawesome.io.  Stay up to date on Twitter at\n *  http://twitter.com/fontawesome.\n *\n *  License\n *  ------------------------------------------------------------------------------\n *  - The Font Awesome font is licensed under SIL OFL 1.1 -\n *    http://scripts.sil.org/OFL\n *  - Font Awesome CSS, LESS, and SASS files are licensed under MIT License -\n *    http://opensource.org/licenses/mit-license.html\n *  - Font Awesome documentation licensed under CC BY 3.0 -\n *    http://creativecommons.org/licenses/by/3.0/\n *  - Attribution is no longer required in Font Awesome 3.0, but much appreciated:\n *    \"Font Awesome by Dave Gandy - http://fontawesome.io\"\n *\n *  Author - Dave Gandy\n *  ------------------------------------------------------------------------------\n *  Email: dave@fontawesome.io\n *  Twitter: http://twitter.com/davegandy\n *  Work: Lead Product Designer @ Kyruus - http://kyruus.com\n */\n/* FONT PATH\n * -------------------------- */\n@font-face {\n  font-family: 'FontAwesome';\n  src: url('<<INSERT FONTAWESOME EOT HERE>>');\n  src: url('<<INSERT FONTAWESOME EOT HERE>>?#iefix') format('embedded-opentype'), url('<<INSERT FONTAWESOME WOFF HERE>>') format('woff'), url('<<INSERT FONTAWESOME TTF HERE>>') format('truetype');\n  font-weight: normal;\n  font-style: normal;\n}\n/* FONT AWESOME CORE\n * -------------------------- */\n[class^=\"icon-\"],\n[class*=\" icon-\"] {\n  font-family: FontAwesome;\n  font-weight: normal;\n  font-style: normal;\n  text-decoration: inherit;\n  -webkit-font-smoothing: antialiased;\n  *margin-right: .3em;\n}\n[class^=\"icon-\"]:before,\n[class*=\" icon-\"]:before {\n  text-decoration: inherit;\n  display: inline-block;\n  speak: none;\n}\n/* makes the font 33% larger relative to the icon container */\n.icon-large:before {\n  vertical-align: -10%;\n  font-size: 1.3333333333333333em;\n}\n/* makes sure icons active on rollover in links */\na [class^=\"icon-\"],\na [class*=\" icon-\"] {\n  display: inline;\n}\n/* increased font size for icon-large */\n[class^=\"icon-\"].icon-fixed-width,\n[class*=\" icon-\"].icon-fixed-width {\n  display: inline-block;\n  width: 1.1428571428571428em;\n  text-align: right;\n  padding-right: 0.2857142857142857em;\n}\n[class^=\"icon-\"].icon-fixed-width.icon-large,\n[class*=\" icon-\"].icon-fixed-width.icon-large {\n  width: 1.4285714285714286em;\n}\n.icons-ul {\n  margin-left: 2.142857142857143em;\n  list-style-type: none;\n}\n.icons-ul > li {\n  position: relative;\n}\n.icons-ul .icon-li {\n  position: absolute;\n  left: -2.142857142857143em;\n  width: 2.142857142857143em;\n  text-align: center;\n  line-height: inherit;\n}\n[class^=\"icon-\"].hide,\n[class*=\" icon-\"].hide {\n  display: none;\n}\n.icon-muted {\n  color: #eeeeee;\n}\n.icon-light {\n  color: #ffffff;\n}\n.icon-dark {\n  color: #333333;\n}\n.icon-border {\n  border: solid 1px #eeeeee;\n  padding: .2em .25em .15em;\n  -webkit-border-radius: 3px;\n  -moz-border-radius: 3px;\n  border-radius: 3px;\n}\n.icon-2x {\n  font-size: 2em;\n}\n.icon-2x.icon-border {\n  border-width: 2px;\n  -webkit-border-radius: 4px;\n  -moz-border-radius: 4px;\n  border-radius: 4px;\n}\n.icon-3x {\n  font-size: 3em;\n}\n.icon-3x.icon-border {\n  border-width: 3px;\n  -webkit-border-radius: 5px;\n  -moz-border-radius: 5px;\n  border-radius: 5px;\n}\n.icon-4x {\n  font-size: 4em;\n}\n.icon-4x.icon-border {\n  border-width: 4px;\n  -webkit-border-radius: 6px;\n  -moz-border-radius: 6px;\n  border-radius: 6px;\n}\n.icon-5x {\n  font-size: 5em;\n}\n.icon-5x.icon-border {\n  border-width: 5px;\n  -webkit-border-radius: 7px;\n  -moz-border-radius: 7px;\n  border-radius: 7px;\n}\n.pull-right {\n  float: right;\n}\n.pull-left {\n  float: left;\n}\n[class^=\"icon-\"].pull-left,\n[class*=\" icon-\"].pull-left {\n  margin-right: .3em;\n}\n[class^=\"icon-\"].pull-right,\n[class*=\" icon-\"].pull-right {\n  margin-left: .3em;\n}\n/* BOOTSTRAP SPECIFIC CLASSES\n * -------------------------- */\n/* Bootstrap 2.0 sprites.less reset */\n[class^=\"icon-\"],\n[class*=\" icon-\"] {\n  display: inline;\n  width: auto;\n  height: auto;\n  line-height: normal;\n  vertical-align: baseline;\n  background-image: none;\n  background-position: 0% 0%;\n  background-repeat: repeat;\n  margin-top: 0;\n}\n/* more sprites.less reset */\n.icon-white,\n.nav-pills > .active > a > [class^=\"icon-\"],\n.nav-pills > .active > a > [class*=\" icon-\"],\n.nav-list > .active > a > [class^=\"icon-\"],\n.nav-list > .active > a > [class*=\" icon-\"],\n.navbar-inverse .nav > .active > a > [class^=\"icon-\"],\n.navbar-inverse .nav > .active > a > [class*=\" icon-\"],\n.dropdown-menu > li > a:hover > [class^=\"icon-\"],\n.dropdown-menu > li > a:hover > [class*=\" icon-\"],\n.dropdown-menu > .active > a > [class^=\"icon-\"],\n.dropdown-menu > .active > a > [class*=\" icon-\"],\n.dropdown-submenu:hover > a > [class^=\"icon-\"],\n.dropdown-submenu:hover > a > [class*=\" icon-\"] {\n  background-image: none;\n}\n/* keeps Bootstrap styles with and without icons the same */\n.btn [class^=\"icon-\"].icon-large,\n.nav [class^=\"icon-\"].icon-large,\n.btn [class*=\" icon-\"].icon-large,\n.nav [class*=\" icon-\"].icon-large {\n  line-height: .9em;\n}\n.btn [class^=\"icon-\"].icon-spin,\n.nav [class^=\"icon-\"].icon-spin,\n.btn [class*=\" icon-\"].icon-spin,\n.nav [class*=\" icon-\"].icon-spin {\n  display: inline-block;\n}\n.nav-tabs [class^=\"icon-\"],\n.nav-pills [class^=\"icon-\"],\n.nav-tabs [class*=\" icon-\"],\n.nav-pills [class*=\" icon-\"],\n.nav-tabs [class^=\"icon-\"].icon-large,\n.nav-pills [class^=\"icon-\"].icon-large,\n.nav-tabs [class*=\" icon-\"].icon-large,\n.nav-pills [class*=\" icon-\"].icon-large {\n  line-height: .9em;\n}\n.btn [class^=\"icon-\"].pull-left.icon-2x,\n.btn [class*=\" icon-\"].pull-left.icon-2x,\n.btn [class^=\"icon-\"].pull-right.icon-2x,\n.btn [class*=\" icon-\"].pull-right.icon-2x {\n  margin-top: .18em;\n}\n.btn [class^=\"icon-\"].icon-spin.icon-large,\n.btn [class*=\" icon-\"].icon-spin.icon-large {\n  line-height: .8em;\n}\n.btn.btn-small [class^=\"icon-\"].pull-left.icon-2x,\n.btn.btn-small [class*=\" icon-\"].pull-left.icon-2x,\n.btn.btn-small [class^=\"icon-\"].pull-right.icon-2x,\n.btn.btn-small [class*=\" icon-\"].pull-right.icon-2x {\n  margin-top: .25em;\n}\n.btn.btn-large [class^=\"icon-\"],\n.btn.btn-large [class*=\" icon-\"] {\n  margin-top: 0;\n}\n.btn.btn-large [class^=\"icon-\"].pull-left.icon-2x,\n.btn.btn-large [class*=\" icon-\"].pull-left.icon-2x,\n.btn.btn-large [class^=\"icon-\"].pull-right.icon-2x,\n.btn.btn-large [class*=\" icon-\"].pull-right.icon-2x {\n  margin-top: .05em;\n}\n.btn.btn-large [class^=\"icon-\"].pull-left.icon-2x,\n.btn.btn-large [class*=\" icon-\"].pull-left.icon-2x {\n  margin-right: .2em;\n}\n.btn.btn-large [class^=\"icon-\"].pull-right.icon-2x,\n.btn.btn-large [class*=\" icon-\"].pull-right.icon-2x {\n  margin-left: .2em;\n}\n/* Fixes alignment in nav lists */\n.nav-list [class^=\"icon-\"],\n.nav-list [class*=\" icon-\"] {\n  line-height: inherit;\n}\n/* EXTRAS\n * -------------------------- */\n/* Stacked and layered icon */\n.icon-stack {\n  position: relative;\n  display: inline-block;\n  width: 2em;\n  height: 2em;\n  line-height: 2em;\n  vertical-align: -35%;\n}\n.icon-stack [class^=\"icon-\"],\n.icon-stack [class*=\" icon-\"] {\n  display: block;\n  text-align: center;\n  position: absolute;\n  width: 100%;\n  height: 100%;\n  font-size: 1em;\n  line-height: inherit;\n  *line-height: 2em;\n}\n.icon-stack .icon-stack-base {\n  font-size: 2em;\n  *line-height: 1em;\n}\n/* Animated rotating icon */\n.icon-spin {\n  display: inline-block;\n  -moz-animation: spin 2s infinite linear;\n  -o-animation: spin 2s infinite linear;\n  -webkit-animation: spin 2s infinite linear;\n  animation: spin 2s infinite linear;\n}\n/* Prevent stack and spinners from being taken inline when inside a link */\na .icon-stack,\na .icon-spin {\n  display: inline-block;\n  text-decoration: none;\n}\n@-moz-keyframes spin {\n  0% {\n    -moz-transform: rotate(0deg);\n  }\n  100% {\n    -moz-transform: rotate(359deg);\n  }\n}\n@-webkit-keyframes spin {\n  0% {\n    -webkit-transform: rotate(0deg);\n  }\n  100% {\n    -webkit-transform: rotate(359deg);\n  }\n}\n@-o-keyframes spin {\n  0% {\n    -o-transform: rotate(0deg);\n  }\n  100% {\n    -o-transform: rotate(359deg);\n  }\n}\n@-ms-keyframes spin {\n  0% {\n    -ms-transform: rotate(0deg);\n  }\n  100% {\n    -ms-transform: rotate(359deg);\n  }\n}\n@keyframes spin {\n  0% {\n    transform: rotate(0deg);\n  }\n  100% {\n    transform: rotate(359deg);\n  }\n}\n/* Icon rotations and mirroring */\n.icon-rotate-90:before {\n  -webkit-transform: rotate(90deg);\n  -moz-transform: rotate(90deg);\n  -ms-transform: rotate(90deg);\n  -o-transform: rotate(90deg);\n  transform: rotate(90deg);\n  filter: progid:DXImageTransform.Microsoft.BasicImage(rotation=1);\n}\n.icon-rotate-180:before {\n  -webkit-transform: rotate(180deg);\n  -moz-transform: rotate(180deg);\n  -ms-transform: rotate(180deg);\n  -o-transform: rotate(180deg);\n  transform: rotate(180deg);\n  filter: progid:DXImageTransform.Microsoft.BasicImage(rotation=2);\n}\n.icon-rotate-270:before {\n  -webkit-transform: rotate(270deg);\n  -moz-transform: rotate(270deg);\n  -ms-transform: rotate(270deg);\n  -o-transform: rotate(270deg);\n  transform: rotate(270deg);\n  filter: progid:DXImageTransform.Microsoft.BasicImage(rotation=3);\n}\n.icon-flip-horizontal:before {\n  -webkit-transform: scale(-1, 1);\n  -moz-transform: scale(-1, 1);\n  -ms-transform: scale(-1, 1);\n  -o-transform: scale(-1, 1);\n  transform: scale(-1, 1);\n}\n.icon-flip-vertical:before {\n  -webkit-transform: scale(1, -1);\n  -moz-transform: scale(1, -1);\n  -ms-transform: scale(1, -1);\n  -o-transform: scale(1, -1);\n  transform: scale(1, -1);\n}\n/* ensure rotation occurs inside anchor tags */\na .icon-rotate-90:before,\na .icon-rotate-180:before,\na .icon-rotate-270:before,\na .icon-flip-horizontal:before,\na .icon-flip-vertical:before {\n  display: inline-block;\n}\n/* Font Awesome uses the Unicode Private Use Area (PUA) to ensure screen\n   readers do not read off random characters that represent icons */\n.icon-glass:before {\n  content: \"\\f000\";\n}\n.icon-music:before {\n  content: \"\\f001\";\n}\n.icon-search:before {\n  content: \"\\f002\";\n}\n.icon-envelope-alt:before {\n  content: \"\\f003\";\n}\n.icon-heart:before {\n  content: \"\\f004\";\n}\n.icon-star:before {\n  content: \"\\f005\";\n}\n.icon-star-empty:before {\n  content: \"\\f006\";\n}\n.icon-user:before {\n  content: \"\\f007\";\n}\n.icon-film:before {\n  content: \"\\f008\";\n}\n.icon-th-large:before {\n  content: \"\\f009\";\n}\n.icon-th:before {\n  content: \"\\f00a\";\n}\n.icon-th-list:before {\n  content: \"\\f00b\";\n}\n.icon-ok:before {\n  content: \"\\f00c\";\n}\n.icon-remove:before {\n  content: \"\\f00d\";\n}\n.icon-zoom-in:before {\n  content: \"\\f00e\";\n}\n.icon-zoom-out:before {\n  content: \"\\f010\";\n}\n.icon-power-off:before,\n.icon-off:before {\n  content: \"\\f011\";\n}\n.icon-signal:before {\n  content: \"\\f012\";\n}\n.icon-gear:before,\n.icon-cog:before {\n  content: \"\\f013\";\n}\n.icon-trash:before {\n  content: \"\\f014\";\n}\n.icon-home:before {\n  content: \"\\f015\";\n}\n.icon-file-alt:before {\n  content: \"\\f016\";\n}\n.icon-time:before {\n  content: \"\\f017\";\n}\n.icon-road:before {\n  content: \"\\f018\";\n}\n.icon-download-alt:before {\n  content: \"\\f019\";\n}\n.icon-download:before {\n  content: \"\\f01a\";\n}\n.icon-upload:before {\n  content: \"\\f01b\";\n}\n.icon-inbox:before {\n  content: \"\\f01c\";\n}\n.icon-play-circle:before {\n  content: \"\\f01d\";\n}\n.icon-rotate-right:before,\n.icon-repeat:before {\n  content: \"\\f01e\";\n}\n.icon-refresh:before {\n  content: \"\\f021\";\n}\n.icon-list-alt:before {\n  content: \"\\f022\";\n}\n.icon-lock:before {\n  content: \"\\f023\";\n}\n.icon-flag:before {\n  content: \"\\f024\";\n}\n.icon-headphones:before {\n  content: \"\\f025\";\n}\n.icon-volume-off:before {\n  content: \"\\f026\";\n}\n.icon-volume-down:before {\n  content: \"\\f027\";\n}\n.icon-volume-up:before {\n  content: \"\\f028\";\n}\n.icon-qrcode:before {\n  content: \"\\f029\";\n}\n.icon-barcode:before {\n  content: \"\\f02a\";\n}\n.icon-tag:before {\n  content: \"\\f02b\";\n}\n.icon-tags:before {\n  content: \"\\f02c\";\n}\n.icon-book:before {\n  content: \"\\f02d\";\n}\n.icon-bookmark:before {\n  content: \"\\f02e\";\n}\n.icon-print:before {\n  content: \"\\f02f\";\n}\n.icon-camera:before {\n  content: \"\\f030\";\n}\n.icon-font:before {\n  content: \"\\f031\";\n}\n.icon-bold:before {\n  content: \"\\f032\";\n}\n.icon-italic:before {\n  content: \"\\f033\";\n}\n.icon-text-height:before {\n  content: \"\\f034\";\n}\n.icon-text-width:before {\n  content: \"\\f035\";\n}\n.icon-align-left:before {\n  content: \"\\f036\";\n}\n.icon-align-center:before {\n  content: \"\\f037\";\n}\n.icon-align-right:before {\n  content: \"\\f038\";\n}\n.icon-align-justify:before {\n  content: \"\\f039\";\n}\n.icon-list:before {\n  content: \"\\f03a\";\n}\n.icon-indent-left:before {\n  content: \"\\f03b\";\n}\n.icon-indent-right:before {\n  content: \"\\f03c\";\n}\n.icon-facetime-video:before {\n  content: \"\\f03d\";\n}\n.icon-picture:before {\n  content: \"\\f03e\";\n}\n.icon-pencil:before {\n  content: \"\\f040\";\n}\n.icon-map-marker:before {\n  content: \"\\f041\";\n}\n.icon-adjust:before {\n  content: \"\\f042\";\n}\n.icon-tint:before {\n  content: \"\\f043\";\n}\n.icon-edit:before {\n  content: \"\\f044\";\n}\n.icon-share:before {\n  content: \"\\f045\";\n}\n.icon-check:before {\n  content: \"\\f046\";\n}\n.icon-move:before {\n  content: \"\\f047\";\n}\n.icon-step-backward:before {\n  content: \"\\f048\";\n}\n.icon-fast-backward:before {\n  content: \"\\f049\";\n}\n.icon-backward:before {\n  content: \"\\f04a\";\n}\n.icon-play:before {\n  content: \"\\f04b\";\n}\n.icon-pause:before {\n  content: \"\\f04c\";\n}\n.icon-stop:before {\n  content: \"\\f04d\";\n}\n.icon-forward:before {\n  content: \"\\f04e\";\n}\n.icon-fast-forward:before {\n  content: \"\\f050\";\n}\n.icon-step-forward:before {\n  content: \"\\f051\";\n}\n.icon-eject:before {\n  content: \"\\f052\";\n}\n.icon-chevron-left:before {\n  content: \"\\f053\";\n}\n.icon-chevron-right:before {\n  content: \"\\f054\";\n}\n.icon-plus-sign:before {\n  content: \"\\f055\";\n}\n.icon-minus-sign:before {\n  content: \"\\f056\";\n}\n.icon-remove-sign:before {\n  content: \"\\f057\";\n}\n.icon-ok-sign:before {\n  content: \"\\f058\";\n}\n.icon-question-sign:before {\n  content: \"\\f059\";\n}\n.icon-info-sign:before {\n  content: \"\\f05a\";\n}\n.icon-screenshot:before {\n  content: \"\\f05b\";\n}\n.icon-remove-circle:before {\n  content: \"\\f05c\";\n}\n.icon-ok-circle:before {\n  content: \"\\f05d\";\n}\n.icon-ban-circle:before {\n  content: \"\\f05e\";\n}\n.icon-arrow-left:before {\n  content: \"\\f060\";\n}\n.icon-arrow-right:before {\n  content: \"\\f061\";\n}\n.icon-arrow-up:before {\n  content: \"\\f062\";\n}\n.icon-arrow-down:before {\n  content: \"\\f063\";\n}\n.icon-mail-forward:before,\n.icon-share-alt:before {\n  content: \"\\f064\";\n}\n.icon-resize-full:before {\n  content: \"\\f065\";\n}\n.icon-resize-small:before {\n  content: \"\\f066\";\n}\n.icon-plus:before {\n  content: \"\\f067\";\n}\n.icon-minus:before {\n  content: \"\\f068\";\n}\n.icon-asterisk:before {\n  content: \"\\f069\";\n}\n.icon-exclamation-sign:before {\n  content: \"\\f06a\";\n}\n.icon-gift:before {\n  content: \"\\f06b\";\n}\n.icon-leaf:before {\n  content: \"\\f06c\";\n}\n.icon-fire:before {\n  content: \"\\f06d\";\n}\n.icon-eye-open:before {\n  content: \"\\f06e\";\n}\n.icon-eye-close:before {\n  content: \"\\f070\";\n}\n.icon-warning-sign:before {\n  content: \"\\f071\";\n}\n.icon-plane:before {\n  content: \"\\f072\";\n}\n.icon-calendar:before {\n  content: \"\\f073\";\n}\n.icon-random:before {\n  content: \"\\f074\";\n}\n.icon-comment:before {\n  content: \"\\f075\";\n}\n.icon-magnet:before {\n  content: \"\\f076\";\n}\n.icon-chevron-up:before {\n  content: \"\\f077\";\n}\n.icon-chevron-down:before {\n  content: \"\\f078\";\n}\n.icon-retweet:before {\n  content: \"\\f079\";\n}\n.icon-shopping-cart:before {\n  content: \"\\f07a\";\n}\n.icon-folder-close:before {\n  content: \"\\f07b\";\n}\n.icon-folder-open:before {\n  content: \"\\f07c\";\n}\n.icon-resize-vertical:before {\n  content: \"\\f07d\";\n}\n.icon-resize-horizontal:before {\n  content: \"\\f07e\";\n}\n.icon-bar-chart:before {\n  content: \"\\f080\";\n}\n.icon-twitter-sign:before {\n  content: \"\\f081\";\n}\n.icon-facebook-sign:before {\n  content: \"\\f082\";\n}\n.icon-camera-retro:before {\n  content: \"\\f083\";\n}\n.icon-key:before {\n  content: \"\\f084\";\n}\n.icon-gears:before,\n.icon-cogs:before {\n  content: \"\\f085\";\n}\n.icon-comments:before {\n  content: \"\\f086\";\n}\n.icon-thumbs-up-alt:before {\n  content: \"\\f087\";\n}\n.icon-thumbs-down-alt:before {\n  content: \"\\f088\";\n}\n.icon-star-half:before {\n  content: \"\\f089\";\n}\n.icon-heart-empty:before {\n  content: \"\\f08a\";\n}\n.icon-signout:before {\n  content: \"\\f08b\";\n}\n.icon-linkedin-sign:before {\n  content: \"\\f08c\";\n}\n.icon-pushpin:before {\n  content: \"\\f08d\";\n}\n.icon-external-link:before {\n  content: \"\\f08e\";\n}\n.icon-signin:before {\n  content: \"\\f090\";\n}\n.icon-trophy:before {\n  content: \"\\f091\";\n}\n.icon-github-sign:before {\n  content: \"\\f092\";\n}\n.icon-upload-alt:before {\n  content: \"\\f093\";\n}\n.icon-lemon:before {\n  content: \"\\f094\";\n}\n.icon-phone:before {\n  content: \"\\f095\";\n}\n.icon-unchecked:before,\n.icon-check-empty:before {\n  content: \"\\f096\";\n}\n.icon-bookmark-empty:before {\n  content: \"\\f097\";\n}\n.icon-phone-sign:before {\n  content: \"\\f098\";\n}\n.icon-twitter:before {\n  content: \"\\f099\";\n}\n.icon-facebook:before {\n  content: \"\\f09a\";\n}\n.icon-github:before {\n  content: \"\\f09b\";\n}\n.icon-unlock:before {\n  content: \"\\f09c\";\n}\n.icon-credit-card:before {\n  content: \"\\f09d\";\n}\n.icon-rss:before {\n  content: \"\\f09e\";\n}\n.icon-hdd:before {\n  content: \"\\f0a0\";\n}\n.icon-bullhorn:before {\n  content: \"\\f0a1\";\n}\n.icon-bell:before {\n  content: \"\\f0a2\";\n}\n.icon-certificate:before {\n  content: \"\\f0a3\";\n}\n.icon-hand-right:before {\n  content: \"\\f0a4\";\n}\n.icon-hand-left:before {\n  content: \"\\f0a5\";\n}\n.icon-hand-up:before {\n  content: \"\\f0a6\";\n}\n.icon-hand-down:before {\n  content: \"\\f0a7\";\n}\n.icon-circle-arrow-left:before {\n  content: \"\\f0a8\";\n}\n.icon-circle-arrow-right:before {\n  content: \"\\f0a9\";\n}\n.icon-circle-arrow-up:before {\n  content: \"\\f0aa\";\n}\n.icon-circle-arrow-down:before {\n  content: \"\\f0ab\";\n}\n.icon-globe:before {\n  content: \"\\f0ac\";\n}\n.icon-wrench:before {\n  content: \"\\f0ad\";\n}\n.icon-tasks:before {\n  content: \"\\f0ae\";\n}\n.icon-filter:before {\n  content: \"\\f0b0\";\n}\n.icon-briefcase:before {\n  content: \"\\f0b1\";\n}\n.icon-fullscreen:before {\n  content: \"\\f0b2\";\n}\n.icon-group:before {\n  content: \"\\f0c0\";\n}\n.icon-link:before {\n  content: \"\\f0c1\";\n}\n.icon-cloud:before {\n  content: \"\\f0c2\";\n}\n.icon-beaker:before {\n  content: \"\\f0c3\";\n}\n.icon-cut:before {\n  content: \"\\f0c4\";\n}\n.icon-copy:before {\n  content: \"\\f0c5\";\n}\n.icon-paperclip:before,\n.icon-paper-clip:before {\n  content: \"\\f0c6\";\n}\n.icon-save:before {\n  content: \"\\f0c7\";\n}\n.icon-sign-blank:before {\n  content: \"\\f0c8\";\n}\n.icon-reorder:before {\n  content: \"\\f0c9\";\n}\n.icon-list-ul:before {\n  content: \"\\f0ca\";\n}\n.icon-list-ol:before {\n  content: \"\\f0cb\";\n}\n.icon-strikethrough:before {\n  content: \"\\f0cc\";\n}\n.icon-underline:before {\n  content: \"\\f0cd\";\n}\n.icon-table:before {\n  content: \"\\f0ce\";\n}\n.icon-magic:before {\n  content: \"\\f0d0\";\n}\n.icon-truck:before {\n  content: \"\\f0d1\";\n}\n.icon-pinterest:before {\n  content: \"\\f0d2\";\n}\n.icon-pinterest-sign:before {\n  content: \"\\f0d3\";\n}\n.icon-google-plus-sign:before {\n  content: \"\\f0d4\";\n}\n.icon-google-plus:before {\n  content: \"\\f0d5\";\n}\n.icon-money:before {\n  content: \"\\f0d6\";\n}\n.icon-caret-down:before {\n  content: \"\\f0d7\";\n}\n.icon-caret-up:before {\n  content: \"\\f0d8\";\n}\n.icon-caret-left:before {\n  content: \"\\f0d9\";\n}\n.icon-caret-right:before {\n  content: \"\\f0da\";\n}\n.icon-columns:before {\n  content: \"\\f0db\";\n}\n.icon-sort:before {\n  content: \"\\f0dc\";\n}\n.icon-sort-down:before {\n  content: \"\\f0dd\";\n}\n.icon-sort-up:before {\n  content: \"\\f0de\";\n}\n.icon-envelope:before {\n  content: \"\\f0e0\";\n}\n.icon-linkedin:before {\n  content: \"\\f0e1\";\n}\n.icon-rotate-left:before,\n.icon-undo:before {\n  content: \"\\f0e2\";\n}\n.icon-legal:before {\n  content: \"\\f0e3\";\n}\n.icon-dashboard:before {\n  content: \"\\f0e4\";\n}\n.icon-comment-alt:before {\n  content: \"\\f0e5\";\n}\n.icon-comments-alt:before {\n  content: \"\\f0e6\";\n}\n.icon-bolt:before {\n  content: \"\\f0e7\";\n}\n.icon-sitemap:before {\n  content: \"\\f0e8\";\n}\n.icon-umbrella:before {\n  content: \"\\f0e9\";\n}\n.icon-paste:before {\n  content: \"\\f0ea\";\n}\n.icon-lightbulb:before {\n  content: \"\\f0eb\";\n}\n.icon-exchange:before {\n  content: \"\\f0ec\";\n}\n.icon-cloud-download:before {\n  content: \"\\f0ed\";\n}\n.icon-cloud-upload:before {\n  content: \"\\f0ee\";\n}\n.icon-user-md:before {\n  content: \"\\f0f0\";\n}\n.icon-stethoscope:before {\n  content: \"\\f0f1\";\n}\n.icon-suitcase:before {\n  content: \"\\f0f2\";\n}\n.icon-bell-alt:before {\n  content: \"\\f0f3\";\n}\n.icon-coffee:before {\n  content: \"\\f0f4\";\n}\n.icon-food:before {\n  content: \"\\f0f5\";\n}\n.icon-file-text-alt:before {\n  content: \"\\f0f6\";\n}\n.icon-building:before {\n  content: \"\\f0f7\";\n}\n.icon-hospital:before {\n  content: \"\\f0f8\";\n}\n.icon-ambulance:before {\n  content: \"\\f0f9\";\n}\n.icon-medkit:before {\n  content: \"\\f0fa\";\n}\n.icon-fighter-jet:before {\n  content: \"\\f0fb\";\n}\n.icon-beer:before {\n  content: \"\\f0fc\";\n}\n.icon-h-sign:before {\n  content: \"\\f0fd\";\n}\n.icon-plus-sign-alt:before {\n  content: \"\\f0fe\";\n}\n.icon-double-angle-left:before {\n  content: \"\\f100\";\n}\n.icon-double-angle-right:before {\n  content: \"\\f101\";\n}\n.icon-double-angle-up:before {\n  content: \"\\f102\";\n}\n.icon-double-angle-down:before {\n  content: \"\\f103\";\n}\n.icon-angle-left:before {\n  content: \"\\f104\";\n}\n.icon-angle-right:before {\n  content: \"\\f105\";\n}\n.icon-angle-up:before {\n  content: \"\\f106\";\n}\n.icon-angle-down:before {\n  content: \"\\f107\";\n}\n.icon-desktop:before {\n  content: \"\\f108\";\n}\n.icon-laptop:before {\n  content: \"\\f109\";\n}\n.icon-tablet:before {\n  content: \"\\f10a\";\n}\n.icon-mobile-phone:before {\n  content: \"\\f10b\";\n}\n.icon-circle-blank:before {\n  content: \"\\f10c\";\n}\n.icon-quote-left:before {\n  content: \"\\f10d\";\n}\n.icon-quote-right:before {\n  content: \"\\f10e\";\n}\n.icon-spinner:before {\n  content: \"\\f110\";\n}\n.icon-circle:before {\n  content: \"\\f111\";\n}\n.icon-mail-reply:before,\n.icon-reply:before {\n  content: \"\\f112\";\n}\n.icon-github-alt:before {\n  content: \"\\f113\";\n}\n.icon-folder-close-alt:before {\n  content: \"\\f114\";\n}\n.icon-folder-open-alt:before {\n  content: \"\\f115\";\n}\n.icon-expand-alt:before {\n  content: \"\\f116\";\n}\n.icon-collapse-alt:before {\n  content: \"\\f117\";\n}\n.icon-smile:before {\n  content: \"\\f118\";\n}\n.icon-frown:before {\n  content: \"\\f119\";\n}\n.icon-meh:before {\n  content: \"\\f11a\";\n}\n.icon-gamepad:before {\n  content: \"\\f11b\";\n}\n.icon-keyboard:before {\n  content: \"\\f11c\";\n}\n.icon-flag-alt:before {\n  content: \"\\f11d\";\n}\n.icon-flag-checkered:before {\n  content: \"\\f11e\";\n}\n.icon-terminal:before {\n  content: \"\\f120\";\n}\n.icon-code:before {\n  content: \"\\f121\";\n}\n.icon-reply-all:before {\n  content: \"\\f122\";\n}\n.icon-mail-reply-all:before {\n  content: \"\\f122\";\n}\n.icon-star-half-full:before,\n.icon-star-half-empty:before {\n  content: \"\\f123\";\n}\n.icon-location-arrow:before {\n  content: \"\\f124\";\n}\n.icon-crop:before {\n  content: \"\\f125\";\n}\n.icon-code-fork:before {\n  content: \"\\f126\";\n}\n.icon-unlink:before {\n  content: \"\\f127\";\n}\n.icon-question:before {\n  content: \"\\f128\";\n}\n.icon-info:before {\n  content: \"\\f129\";\n}\n.icon-exclamation:before {\n  content: \"\\f12a\";\n}\n.icon-superscript:before {\n  content: \"\\f12b\";\n}\n.icon-subscript:before {\n  content: \"\\f12c\";\n}\n.icon-eraser:before {\n  content: \"\\f12d\";\n}\n.icon-puzzle-piece:before {\n  content: \"\\f12e\";\n}\n.icon-microphone:before {\n  content: \"\\f130\";\n}\n.icon-microphone-off:before {\n  content: \"\\f131\";\n}\n.icon-shield:before {\n  content: \"\\f132\";\n}\n.icon-calendar-empty:before {\n  content: \"\\f133\";\n}\n.icon-fire-extinguisher:before {\n  content: \"\\f134\";\n}\n.icon-rocket:before {\n  content: \"\\f135\";\n}\n.icon-maxcdn:before {\n  content: \"\\f136\";\n}\n.icon-chevron-sign-left:before {\n  content: \"\\f137\";\n}\n.icon-chevron-sign-right:before {\n  content: \"\\f138\";\n}\n.icon-chevron-sign-up:before {\n  content: \"\\f139\";\n}\n.icon-chevron-sign-down:before {\n  content: \"\\f13a\";\n}\n.icon-html5:before {\n  content: \"\\f13b\";\n}\n.icon-css3:before {\n  content: \"\\f13c\";\n}\n.icon-anchor:before {\n  content: \"\\f13d\";\n}\n.icon-unlock-alt:before {\n  content: \"\\f13e\";\n}\n.icon-bullseye:before {\n  content: \"\\f140\";\n}\n.icon-ellipsis-horizontal:before {\n  content: \"\\f141\";\n}\n.icon-ellipsis-vertical:before {\n  content: \"\\f142\";\n}\n.icon-rss-sign:before {\n  content: \"\\f143\";\n}\n.icon-play-sign:before {\n  content: \"\\f144\";\n}\n.icon-ticket:before {\n  content: \"\\f145\";\n}\n.icon-minus-sign-alt:before {\n  content: \"\\f146\";\n}\n.icon-check-minus:before {\n  content: \"\\f147\";\n}\n.icon-level-up:before {\n  content: \"\\f148\";\n}\n.icon-level-down:before {\n  content: \"\\f149\";\n}\n.icon-check-sign:before {\n  content: \"\\f14a\";\n}\n.icon-edit-sign:before {\n  content: \"\\f14b\";\n}\n.icon-external-link-sign:before {\n  content: \"\\f14c\";\n}\n.icon-share-sign:before {\n  content: \"\\f14d\";\n}\n.icon-compass:before {\n  content: \"\\f14e\";\n}\n.icon-collapse:before {\n  content: \"\\f150\";\n}\n.icon-collapse-top:before {\n  content: \"\\f151\";\n}\n.icon-expand:before {\n  content: \"\\f152\";\n}\n.icon-euro:before,\n.icon-eur:before {\n  content: \"\\f153\";\n}\n.icon-gbp:before {\n  content: \"\\f154\";\n}\n.icon-dollar:before,\n.icon-usd:before {\n  content: \"\\f155\";\n}\n.icon-rupee:before,\n.icon-inr:before {\n  content: \"\\f156\";\n}\n.icon-yen:before,\n.icon-jpy:before {\n  content: \"\\f157\";\n}\n.icon-renminbi:before,\n.icon-cny:before {\n  content: \"\\f158\";\n}\n.icon-won:before,\n.icon-krw:before {\n  content: \"\\f159\";\n}\n.icon-bitcoin:before,\n.icon-btc:before {\n  content: \"\\f15a\";\n}\n.icon-file:before {\n  content: \"\\f15b\";\n}\n.icon-file-text:before {\n  content: \"\\f15c\";\n}\n.icon-sort-by-alphabet:before {\n  content: \"\\f15d\";\n}\n.icon-sort-by-alphabet-alt:before {\n  content: \"\\f15e\";\n}\n.icon-sort-by-attributes:before {\n  content: \"\\f160\";\n}\n.icon-sort-by-attributes-alt:before {\n  content: \"\\f161\";\n}\n.icon-sort-by-order:before {\n  content: \"\\f162\";\n}\n.icon-sort-by-order-alt:before {\n  content: \"\\f163\";\n}\n.icon-thumbs-up:before {\n  content: \"\\f164\";\n}\n.icon-thumbs-down:before {\n  content: \"\\f165\";\n}\n.icon-youtube-sign:before {\n  content: \"\\f166\";\n}\n.icon-youtube:before {\n  content: \"\\f167\";\n}\n.icon-xing:before {\n  content: \"\\f168\";\n}\n.icon-xing-sign:before {\n  content: \"\\f169\";\n}\n.icon-youtube-play:before {\n  content: \"\\f16a\";\n}\n.icon-dropbox:before {\n  content: \"\\f16b\";\n}\n.icon-stackexchange:before {\n  content: \"\\f16c\";\n}\n.icon-instagram:before {\n  content: \"\\f16d\";\n}\n.icon-flickr:before {\n  content: \"\\f16e\";\n}\n.icon-adn:before {\n  content: \"\\f170\";\n}\n.icon-bitbucket:before {\n  content: \"\\f171\";\n}\n.icon-bitbucket-sign:before {\n  content: \"\\f172\";\n}\n.icon-tumblr:before {\n  content: \"\\f173\";\n}\n.icon-tumblr-sign:before {\n  content: \"\\f174\";\n}\n.icon-long-arrow-down:before {\n  content: \"\\f175\";\n}\n.icon-long-arrow-up:before {\n  content: \"\\f176\";\n}\n.icon-long-arrow-left:before {\n  content: \"\\f177\";\n}\n.icon-long-arrow-right:before {\n  content: \"\\f178\";\n}\n.icon-apple:before {\n  content: \"\\f179\";\n}\n.icon-windows:before {\n  content: \"\\f17a\";\n}\n.icon-android:before {\n  content: \"\\f17b\";\n}\n.icon-linux:before {\n  content: \"\\f17c\";\n}\n.icon-dribbble:before {\n  content: \"\\f17d\";\n}\n.icon-skype:before {\n  content: \"\\f17e\";\n}\n.icon-foursquare:before {\n  content: \"\\f180\";\n}\n.icon-trello:before {\n  content: \"\\f181\";\n}\n.icon-female:before {\n  content: \"\\f182\";\n}\n.icon-male:before {\n  content: \"\\f183\";\n}\n.icon-gittip:before {\n  content: \"\\f184\";\n}\n.icon-sun:before {\n  content: \"\\f185\";\n}\n.icon-moon:before {\n  content: \"\\f186\";\n}\n.icon-archive:before {\n  content: \"\\f187\";\n}\n.icon-bug:before {\n  content: \"\\f188\";\n}\n.icon-vk:before {\n  content: \"\\f189\";\n}\n.icon-weibo:before {\n  content: \"\\f18a\";\n}\n.icon-renren:before {\n  content: \"\\f18b\";\n}\n"; s.id = "css-font-awesome"; document.head.appendChild(s);}, "data/stylesheets/introjs": function(exports, require, module) {s = document.createElement('style'); s.innerHTML = ".introjs-overlay {\n  position: absolute;\n  z-index: 999999;\n  background-color: #000;\n  opacity: 0;\n  -webkit-transition: all 0.3s ease-out;\n     -moz-transition: all 0.3s ease-out;\n      -ms-transition: all 0.3s ease-out;\n       -o-transition: all 0.3s ease-out;\n          transition: all 0.3s ease-out;\n}\n\n.introjs-showElement {\n  z-index: 9999999;\n}\n\n.introjs-relativePosition {\n  position: relative;\n}\n\n.introjs-helperLayer {\n  position: absolute;\n  z-index: 9999998;\n  background-color: rgba(255,255,255,.9);\n  border: 1px solid rgba(0,0,0,.5);\n  border-radius: 4px;\n  box-shadow: 0 2px 15px rgba(0,0,0,.4);\n  -webkit-transition: all 0.3s ease-out;\n     -moz-transition: all 0.3s ease-out;\n      -ms-transition: all 0.3s ease-out;\n       -o-transition: all 0.3s ease-out;\n          transition: all 0.3s ease-out;\n}\n\n.introjs-helperNumberLayer {\n  position: absolute;\n  top: -16px;\n  left: -16px;\n  z-index: 9999999999 !important;\n  padding: 2px;\n  font-family: Arial, verdana, tahoma;\n  font-size: 13px;\n  font-weight: bold;\n  color: white;\n  text-align: center;\n  text-shadow: 1px 1px 1px rgba(0,0,0,.3);\n  background: #ff3019; /* Old browsers */\n  background: -webkit-linear-gradient(top, #ff3019 0%, #cf0404 100%); /* Chrome10+,Safari5.1+ */\n  background: -webkit-gradient(linear, left top, left bottom, color-stop(0%, #ff3019), color-stop(100%, #cf0404)); /* Chrome,Safari4+ */\n  background:    -moz-linear-gradient(top, #ff3019 0%, #cf0404 100%); /* FF3.6+ */\n  background:     -ms-linear-gradient(top, #ff3019 0%, #cf0404 100%); /* IE10+ */\n  background:      -o-linear-gradient(top, #ff3019 0%, #cf0404 100%); /* Opera 11.10+ */\n  background:         linear-gradient(to bottom, #ff3019 0%, #cf0404 100%);  /* W3C */\n  width: 20px;\n  height:20px;\n  line-height: 20px;\n  border: 3px solid white;\n  border-radius: 50%;\n  filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#ff3019', endColorstr='#cf0404', GradientType=0); /* IE6-9 */ \n  filter: progid:DXImageTransform.Microsoft.Shadow(direction=135, strength=2, color=ff0000); /* IE10 text shadows */\n  box-shadow: 0 2px 5px rgba(0,0,0,.4);\n}\n\n.introjs-arrow {\n  border: 5px solid white;\n  content:'';\n  position: absolute;\n}\n.introjs-arrow.top {\n  top: -10px;\n  border-top-color:transparent;\n  border-right-color:transparent;\n  border-bottom-color:white;\n  border-left-color:transparent;\n}\n.introjs-arrow.right {\n  right: -10px;\n  top: 10px;\n  border-top-color:transparent;\n  border-right-color:transparent;\n  border-bottom-color:transparent;\n  border-left-color:white;\n}\n.introjs-arrow.bottom {\n  bottom: -10px;\n  border-top-color:white;\n  border-right-color:transparent;\n  border-bottom-color:transparent;\n  border-left-color:transparent;\n}\n.introjs-arrow.left {\n  left: -10px;\n  top: 10px;\n  border-top-color:transparent;\n  border-right-color:white;\n  border-bottom-color:transparent;\n  border-left-color:transparent;\n}\n\n.introjs-tooltip {\n  position: absolute;\n  padding: 10px;\n  background-color: white;\n  min-width: 200px;\n  border-radius: 3px;\n  box-shadow: 0 1px 10px rgba(0,0,0,.4);\n  -webkit-transition: opacity 0.1s ease-out;\n     -moz-transition: opacity 0.1s ease-out;\n      -ms-transition: opacity 0.1s ease-out;\n       -o-transition: opacity 0.1s ease-out;\n          transition: opacity 0.1s ease-out;\n}\n\n.introjs-tooltipbuttons {\n  text-align: right;\n}\n\n/* \n Buttons style by http://nicolasgallagher.com/lab/css3-github-buttons/ \n Changed by Afshin Mehrabani\n*/\n.introjs-button {\n  position: relative;\n  overflow: visible;\n  display: inline-block;\n  padding: 0.3em 0.8em;\n  border: 1px solid #d4d4d4;\n  margin: 0;\n  text-decoration: none;\n  text-shadow: 1px 1px 0 #fff;\n  font: 11px/normal sans-serif;\n  color: #333;\n  white-space: nowrap;\n  cursor: pointer;\n  outline: none;\n  background-color: #ececec;\n  background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#f4f4f4), to(#ececec));\n  background-image: -moz-linear-gradient(#f4f4f4, #ececec);\n  background-image: -o-linear-gradient(#f4f4f4, #ececec);\n  background-image: linear-gradient(#f4f4f4, #ececec);\n  -webkit-background-clip: padding;\n  -moz-background-clip: padding;\n  -o-background-clip: padding-box;\n  /*background-clip: padding-box;*/ /* commented out due to Opera 11.10 bug */\n  -webkit-border-radius: 0.2em;\n  -moz-border-radius: 0.2em;\n  border-radius: 0.2em;\n  /* IE hacks */\n  zoom: 1;\n  *display: inline;\n  margin-top: 10px;\n}\n\n.introjs-button:hover {\n  border-color: #bcbcbc;\n  text-decoration: none; \n  box-shadow: 0px 1px 1px #e3e3e3;\n}\n\n.introjs-button:focus,\n.introjs-button:active {\n  background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ececec), to(#f4f4f4));\n  background-image: -moz-linear-gradient(#ececec, #f4f4f4);\n  background-image: -o-linear-gradient(#ececec, #f4f4f4);\n  background-image: linear-gradient(#ececec, #f4f4f4);\n}\n\n/* overrides extra padding on button elements in Firefox */\n.introjs-button::-moz-focus-inner {\n  padding: 0;\n  border: 0;\n}\n\n.introjs-skipbutton {\n  margin-right: 5px;\n  color: #7a7a7a;\n}\n\n.introjs-prevbutton {\n  -webkit-border-radius: 0.2em 0 0 0.2em;\n  -moz-border-radius: 0.2em 0 0 0.2em;\n  border-radius: 0.2em 0 0 0.2em;\n  border-right: none;\n}\n\n.introjs-nextbutton {\n  -webkit-border-radius: 0 0.2em 0.2em 0;\n  -moz-border-radius: 0 0.2em 0.2em 0;\n  border-radius: 0 0.2em 0.2em 0;\n}\n\n.introjs-disabled, .introjs-disabled:hover {\n  color: #9a9a9a;\n  border-color: #d4d4d4;\n  box-shadow: none;\n  cursor: default;\n  background-color: #f4f4f4;\n  background-image: none;\n}"; s.id = "css-introjs"; document.head.appendChild(s);}, "data/views/document/_alt": function(exports, require, module) {module.exports = function(__obj) {
+return window.JSONImport['ro-RO'] = module.exports = item;}, "data/stylesheets/font-awesome": function(exports, require, module) {s = document.createElement('style'); s.innerHTML = "/*!\n *  Font Awesome 3.2.1\n *  the iconic font designed for Bootstrap\n *  ------------------------------------------------------------------------------\n *  The full suite of pictographic icons, examples, and documentation can be\n *  found at http://fontawesome.io.  Stay up to date on Twitter at\n *  http://twitter.com/fontawesome.\n *\n *  License\n *  ------------------------------------------------------------------------------\n *  - The Font Awesome font is licensed under SIL OFL 1.1 -\n *    http://scripts.sil.org/OFL\n *  - Font Awesome CSS, LESS, and SASS files are licensed under MIT License -\n *    http://opensource.org/licenses/mit-license.html\n *  - Font Awesome documentation licensed under CC BY 3.0 -\n *    http://creativecommons.org/licenses/by/3.0/\n *  - Attribution is no longer required in Font Awesome 3.0, but much appreciated:\n *    \"Font Awesome by Dave Gandy - http://fontawesome.io\"\n *\n *  Author - Dave Gandy\n *  ------------------------------------------------------------------------------\n *  Email: dave@fontawesome.io\n *  Twitter: http://twitter.com/davegandy\n *  Work: Lead Product Designer @ Kyruus - http://kyruus.com\n */\n/* FONT PATH\n * -------------------------- */\n@font-face {\n  font-family: 'FontAwesome';\n  src: url('<<INSERT FONTAWESOME EOT HERE>>');\n  src: url('<<INSERT FONTAWESOME EOT HERE>>?#iefix') format('embedded-opentype'), url('<<INSERT FONTAWESOME WOFF HERE>>') format('woff'), url('<<INSERT FONTAWESOME TTF HERE>>') format('truetype');\n  font-weight: normal;\n  font-style: normal;\n}\n/* FONT AWESOME CORE\n * -------------------------- */\n[class^=\"icon-\"],\n[class*=\" icon-\"] {\n  font-family: FontAwesome;\n  font-weight: normal;\n  font-style: normal;\n  text-decoration: inherit;\n  -webkit-font-smoothing: antialiased;\n  *margin-right: .3em;\n}\n[class^=\"icon-\"]:before,\n[class*=\" icon-\"]:before {\n  text-decoration: inherit;\n  display: inline-block;\n  speak: none;\n}\n/* makes the font 33% larger relative to the icon container */\n.icon-large:before {\n  vertical-align: -10%;\n  font-size: 1.3333333333333333em;\n}\n/* makes sure icons active on rollover in links */\na [class^=\"icon-\"],\na [class*=\" icon-\"] {\n  display: inline;\n}\n/* increased font size for icon-large */\n[class^=\"icon-\"].icon-fixed-width,\n[class*=\" icon-\"].icon-fixed-width {\n  display: inline-block;\n  width: 1.1428571428571428em;\n  text-align: right;\n  padding-right: 0.2857142857142857em;\n}\n[class^=\"icon-\"].icon-fixed-width.icon-large,\n[class*=\" icon-\"].icon-fixed-width.icon-large {\n  width: 1.4285714285714286em;\n}\n.icons-ul {\n  margin-left: 2.142857142857143em;\n  list-style-type: none;\n}\n.icons-ul > li {\n  position: relative;\n}\n.icons-ul .icon-li {\n  position: absolute;\n  left: -2.142857142857143em;\n  width: 2.142857142857143em;\n  text-align: center;\n  line-height: inherit;\n}\n[class^=\"icon-\"].hide,\n[class*=\" icon-\"].hide {\n  display: none;\n}\n.icon-muted {\n  color: #eeeeee;\n}\n.icon-light {\n  color: #ffffff;\n}\n.icon-dark {\n  color: #333333;\n}\n.icon-border {\n  border: solid 1px #eeeeee;\n  padding: .2em .25em .15em;\n  -webkit-border-radius: 3px;\n  -moz-border-radius: 3px;\n  border-radius: 3px;\n}\n.icon-2x {\n  font-size: 2em;\n}\n.icon-2x.icon-border {\n  border-width: 2px;\n  -webkit-border-radius: 4px;\n  -moz-border-radius: 4px;\n  border-radius: 4px;\n}\n.icon-3x {\n  font-size: 3em;\n}\n.icon-3x.icon-border {\n  border-width: 3px;\n  -webkit-border-radius: 5px;\n  -moz-border-radius: 5px;\n  border-radius: 5px;\n}\n.icon-4x {\n  font-size: 4em;\n}\n.icon-4x.icon-border {\n  border-width: 4px;\n  -webkit-border-radius: 6px;\n  -moz-border-radius: 6px;\n  border-radius: 6px;\n}\n.icon-5x {\n  font-size: 5em;\n}\n.icon-5x.icon-border {\n  border-width: 5px;\n  -webkit-border-radius: 7px;\n  -moz-border-radius: 7px;\n  border-radius: 7px;\n}\n.pull-right {\n  float: right;\n}\n.pull-left {\n  float: left;\n}\n[class^=\"icon-\"].pull-left,\n[class*=\" icon-\"].pull-left {\n  margin-right: .3em;\n}\n[class^=\"icon-\"].pull-right,\n[class*=\" icon-\"].pull-right {\n  margin-left: .3em;\n}\n/* BOOTSTRAP SPECIFIC CLASSES\n * -------------------------- */\n/* Bootstrap 2.0 sprites.less reset */\n[class^=\"icon-\"],\n[class*=\" icon-\"] {\n  display: inline;\n  width: auto;\n  height: auto;\n  line-height: normal;\n  vertical-align: baseline;\n  background-image: none;\n  background-position: 0% 0%;\n  background-repeat: repeat;\n  margin-top: 0;\n}\n/* more sprites.less reset */\n.icon-white,\n.nav-pills > .active > a > [class^=\"icon-\"],\n.nav-pills > .active > a > [class*=\" icon-\"],\n.nav-list > .active > a > [class^=\"icon-\"],\n.nav-list > .active > a > [class*=\" icon-\"],\n.navbar-inverse .nav > .active > a > [class^=\"icon-\"],\n.navbar-inverse .nav > .active > a > [class*=\" icon-\"],\n.dropdown-menu > li > a:hover > [class^=\"icon-\"],\n.dropdown-menu > li > a:hover > [class*=\" icon-\"],\n.dropdown-menu > .active > a > [class^=\"icon-\"],\n.dropdown-menu > .active > a > [class*=\" icon-\"],\n.dropdown-submenu:hover > a > [class^=\"icon-\"],\n.dropdown-submenu:hover > a > [class*=\" icon-\"] {\n  background-image: none;\n}\n/* keeps Bootstrap styles with and without icons the same */\n.btn [class^=\"icon-\"].icon-large,\n.nav [class^=\"icon-\"].icon-large,\n.btn [class*=\" icon-\"].icon-large,\n.nav [class*=\" icon-\"].icon-large {\n  line-height: .9em;\n}\n.btn [class^=\"icon-\"].icon-spin,\n.nav [class^=\"icon-\"].icon-spin,\n.btn [class*=\" icon-\"].icon-spin,\n.nav [class*=\" icon-\"].icon-spin {\n  display: inline-block;\n}\n.nav-tabs [class^=\"icon-\"],\n.nav-pills [class^=\"icon-\"],\n.nav-tabs [class*=\" icon-\"],\n.nav-pills [class*=\" icon-\"],\n.nav-tabs [class^=\"icon-\"].icon-large,\n.nav-pills [class^=\"icon-\"].icon-large,\n.nav-tabs [class*=\" icon-\"].icon-large,\n.nav-pills [class*=\" icon-\"].icon-large {\n  line-height: .9em;\n}\n.btn [class^=\"icon-\"].pull-left.icon-2x,\n.btn [class*=\" icon-\"].pull-left.icon-2x,\n.btn [class^=\"icon-\"].pull-right.icon-2x,\n.btn [class*=\" icon-\"].pull-right.icon-2x {\n  margin-top: .18em;\n}\n.btn [class^=\"icon-\"].icon-spin.icon-large,\n.btn [class*=\" icon-\"].icon-spin.icon-large {\n  line-height: .8em;\n}\n.btn.btn-small [class^=\"icon-\"].pull-left.icon-2x,\n.btn.btn-small [class*=\" icon-\"].pull-left.icon-2x,\n.btn.btn-small [class^=\"icon-\"].pull-right.icon-2x,\n.btn.btn-small [class*=\" icon-\"].pull-right.icon-2x {\n  margin-top: .25em;\n}\n.btn.btn-large [class^=\"icon-\"],\n.btn.btn-large [class*=\" icon-\"] {\n  margin-top: 0;\n}\n.btn.btn-large [class^=\"icon-\"].pull-left.icon-2x,\n.btn.btn-large [class*=\" icon-\"].pull-left.icon-2x,\n.btn.btn-large [class^=\"icon-\"].pull-right.icon-2x,\n.btn.btn-large [class*=\" icon-\"].pull-right.icon-2x {\n  margin-top: .05em;\n}\n.btn.btn-large [class^=\"icon-\"].pull-left.icon-2x,\n.btn.btn-large [class*=\" icon-\"].pull-left.icon-2x {\n  margin-right: .2em;\n}\n.btn.btn-large [class^=\"icon-\"].pull-right.icon-2x,\n.btn.btn-large [class*=\" icon-\"].pull-right.icon-2x {\n  margin-left: .2em;\n}\n/* Fixes alignment in nav lists */\n.nav-list [class^=\"icon-\"],\n.nav-list [class*=\" icon-\"] {\n  line-height: inherit;\n}\n/* EXTRAS\n * -------------------------- */\n/* Stacked and layered icon */\n.icon-stack {\n  position: relative;\n  display: inline-block;\n  width: 2em;\n  height: 2em;\n  line-height: 2em;\n  vertical-align: -35%;\n}\n.icon-stack [class^=\"icon-\"],\n.icon-stack [class*=\" icon-\"] {\n  display: block;\n  text-align: center;\n  position: absolute;\n  width: 100%;\n  height: 100%;\n  font-size: 1em;\n  line-height: inherit;\n  *line-height: 2em;\n}\n.icon-stack .icon-stack-base {\n  font-size: 2em;\n  *line-height: 1em;\n}\n/* Animated rotating icon */\n.icon-spin {\n  display: inline-block;\n  -moz-animation: spin 2s infinite linear;\n  -o-animation: spin 2s infinite linear;\n  -webkit-animation: spin 2s infinite linear;\n  animation: spin 2s infinite linear;\n}\n/* Prevent stack and spinners from being taken inline when inside a link */\na .icon-stack,\na .icon-spin {\n  display: inline-block;\n  text-decoration: none;\n}\n@-moz-keyframes spin {\n  0% {\n    -moz-transform: rotate(0deg);\n  }\n  100% {\n    -moz-transform: rotate(359deg);\n  }\n}\n@-webkit-keyframes spin {\n  0% {\n    -webkit-transform: rotate(0deg);\n  }\n  100% {\n    -webkit-transform: rotate(359deg);\n  }\n}\n@-o-keyframes spin {\n  0% {\n    -o-transform: rotate(0deg);\n  }\n  100% {\n    -o-transform: rotate(359deg);\n  }\n}\n@-ms-keyframes spin {\n  0% {\n    -ms-transform: rotate(0deg);\n  }\n  100% {\n    -ms-transform: rotate(359deg);\n  }\n}\n@keyframes spin {\n  0% {\n    transform: rotate(0deg);\n  }\n  100% {\n    transform: rotate(359deg);\n  }\n}\n/* Icon rotations and mirroring */\n.icon-rotate-90:before {\n  -webkit-transform: rotate(90deg);\n  -moz-transform: rotate(90deg);\n  -ms-transform: rotate(90deg);\n  -o-transform: rotate(90deg);\n  transform: rotate(90deg);\n  filter: progid:DXImageTransform.Microsoft.BasicImage(rotation=1);\n}\n.icon-rotate-180:before {\n  -webkit-transform: rotate(180deg);\n  -moz-transform: rotate(180deg);\n  -ms-transform: rotate(180deg);\n  -o-transform: rotate(180deg);\n  transform: rotate(180deg);\n  filter: progid:DXImageTransform.Microsoft.BasicImage(rotation=2);\n}\n.icon-rotate-270:before {\n  -webkit-transform: rotate(270deg);\n  -moz-transform: rotate(270deg);\n  -ms-transform: rotate(270deg);\n  -o-transform: rotate(270deg);\n  transform: rotate(270deg);\n  filter: progid:DXImageTransform.Microsoft.BasicImage(rotation=3);\n}\n.icon-flip-horizontal:before {\n  -webkit-transform: scale(-1, 1);\n  -moz-transform: scale(-1, 1);\n  -ms-transform: scale(-1, 1);\n  -o-transform: scale(-1, 1);\n  transform: scale(-1, 1);\n}\n.icon-flip-vertical:before {\n  -webkit-transform: scale(1, -1);\n  -moz-transform: scale(1, -1);\n  -ms-transform: scale(1, -1);\n  -o-transform: scale(1, -1);\n  transform: scale(1, -1);\n}\n/* ensure rotation occurs inside anchor tags */\na .icon-rotate-90:before,\na .icon-rotate-180:before,\na .icon-rotate-270:before,\na .icon-flip-horizontal:before,\na .icon-flip-vertical:before {\n  display: inline-block;\n}\n/* Font Awesome uses the Unicode Private Use Area (PUA) to ensure screen\n   readers do not read off random characters that represent icons */\n.icon-glass:before {\n  content: \"\\f000\";\n}\n.icon-music:before {\n  content: \"\\f001\";\n}\n.icon-search:before {\n  content: \"\\f002\";\n}\n.icon-envelope-alt:before {\n  content: \"\\f003\";\n}\n.icon-heart:before {\n  content: \"\\f004\";\n}\n.icon-star:before {\n  content: \"\\f005\";\n}\n.icon-star-empty:before {\n  content: \"\\f006\";\n}\n.icon-user:before {\n  content: \"\\f007\";\n}\n.icon-film:before {\n  content: \"\\f008\";\n}\n.icon-th-large:before {\n  content: \"\\f009\";\n}\n.icon-th:before {\n  content: \"\\f00a\";\n}\n.icon-th-list:before {\n  content: \"\\f00b\";\n}\n.icon-ok:before {\n  content: \"\\f00c\";\n}\n.icon-remove:before {\n  content: \"\\f00d\";\n}\n.icon-zoom-in:before {\n  content: \"\\f00e\";\n}\n.icon-zoom-out:before {\n  content: \"\\f010\";\n}\n.icon-power-off:before,\n.icon-off:before {\n  content: \"\\f011\";\n}\n.icon-signal:before {\n  content: \"\\f012\";\n}\n.icon-gear:before,\n.icon-cog:before {\n  content: \"\\f013\";\n}\n.icon-trash:before {\n  content: \"\\f014\";\n}\n.icon-home:before {\n  content: \"\\f015\";\n}\n.icon-file-alt:before {\n  content: \"\\f016\";\n}\n.icon-time:before {\n  content: \"\\f017\";\n}\n.icon-road:before {\n  content: \"\\f018\";\n}\n.icon-download-alt:before {\n  content: \"\\f019\";\n}\n.icon-download:before {\n  content: \"\\f01a\";\n}\n.icon-upload:before {\n  content: \"\\f01b\";\n}\n.icon-inbox:before {\n  content: \"\\f01c\";\n}\n.icon-play-circle:before {\n  content: \"\\f01d\";\n}\n.icon-rotate-right:before,\n.icon-repeat:before {\n  content: \"\\f01e\";\n}\n.icon-refresh:before {\n  content: \"\\f021\";\n}\n.icon-list-alt:before {\n  content: \"\\f022\";\n}\n.icon-lock:before {\n  content: \"\\f023\";\n}\n.icon-flag:before {\n  content: \"\\f024\";\n}\n.icon-headphones:before {\n  content: \"\\f025\";\n}\n.icon-volume-off:before {\n  content: \"\\f026\";\n}\n.icon-volume-down:before {\n  content: \"\\f027\";\n}\n.icon-volume-up:before {\n  content: \"\\f028\";\n}\n.icon-qrcode:before {\n  content: \"\\f029\";\n}\n.icon-barcode:before {\n  content: \"\\f02a\";\n}\n.icon-tag:before {\n  content: \"\\f02b\";\n}\n.icon-tags:before {\n  content: \"\\f02c\";\n}\n.icon-book:before {\n  content: \"\\f02d\";\n}\n.icon-bookmark:before {\n  content: \"\\f02e\";\n}\n.icon-print:before {\n  content: \"\\f02f\";\n}\n.icon-camera:before {\n  content: \"\\f030\";\n}\n.icon-font:before {\n  content: \"\\f031\";\n}\n.icon-bold:before {\n  content: \"\\f032\";\n}\n.icon-italic:before {\n  content: \"\\f033\";\n}\n.icon-text-height:before {\n  content: \"\\f034\";\n}\n.icon-text-width:before {\n  content: \"\\f035\";\n}\n.icon-align-left:before {\n  content: \"\\f036\";\n}\n.icon-align-center:before {\n  content: \"\\f037\";\n}\n.icon-align-right:before {\n  content: \"\\f038\";\n}\n.icon-align-justify:before {\n  content: \"\\f039\";\n}\n.icon-list:before {\n  content: \"\\f03a\";\n}\n.icon-indent-left:before {\n  content: \"\\f03b\";\n}\n.icon-indent-right:before {\n  content: \"\\f03c\";\n}\n.icon-facetime-video:before {\n  content: \"\\f03d\";\n}\n.icon-picture:before {\n  content: \"\\f03e\";\n}\n.icon-pencil:before {\n  content: \"\\f040\";\n}\n.icon-map-marker:before {\n  content: \"\\f041\";\n}\n.icon-adjust:before {\n  content: \"\\f042\";\n}\n.icon-tint:before {\n  content: \"\\f043\";\n}\n.icon-edit:before {\n  content: \"\\f044\";\n}\n.icon-share:before {\n  content: \"\\f045\";\n}\n.icon-check:before {\n  content: \"\\f046\";\n}\n.icon-move:before {\n  content: \"\\f047\";\n}\n.icon-step-backward:before {\n  content: \"\\f048\";\n}\n.icon-fast-backward:before {\n  content: \"\\f049\";\n}\n.icon-backward:before {\n  content: \"\\f04a\";\n}\n.icon-play:before {\n  content: \"\\f04b\";\n}\n.icon-pause:before {\n  content: \"\\f04c\";\n}\n.icon-stop:before {\n  content: \"\\f04d\";\n}\n.icon-forward:before {\n  content: \"\\f04e\";\n}\n.icon-fast-forward:before {\n  content: \"\\f050\";\n}\n.icon-step-forward:before {\n  content: \"\\f051\";\n}\n.icon-eject:before {\n  content: \"\\f052\";\n}\n.icon-chevron-left:before {\n  content: \"\\f053\";\n}\n.icon-chevron-right:before {\n  content: \"\\f054\";\n}\n.icon-plus-sign:before {\n  content: \"\\f055\";\n}\n.icon-minus-sign:before {\n  content: \"\\f056\";\n}\n.icon-remove-sign:before {\n  content: \"\\f057\";\n}\n.icon-ok-sign:before {\n  content: \"\\f058\";\n}\n.icon-question-sign:before {\n  content: \"\\f059\";\n}\n.icon-info-sign:before {\n  content: \"\\f05a\";\n}\n.icon-screenshot:before {\n  content: \"\\f05b\";\n}\n.icon-remove-circle:before {\n  content: \"\\f05c\";\n}\n.icon-ok-circle:before {\n  content: \"\\f05d\";\n}\n.icon-ban-circle:before {\n  content: \"\\f05e\";\n}\n.icon-arrow-left:before {\n  content: \"\\f060\";\n}\n.icon-arrow-right:before {\n  content: \"\\f061\";\n}\n.icon-arrow-up:before {\n  content: \"\\f062\";\n}\n.icon-arrow-down:before {\n  content: \"\\f063\";\n}\n.icon-mail-forward:before,\n.icon-share-alt:before {\n  content: \"\\f064\";\n}\n.icon-resize-full:before {\n  content: \"\\f065\";\n}\n.icon-resize-small:before {\n  content: \"\\f066\";\n}\n.icon-plus:before {\n  content: \"\\f067\";\n}\n.icon-minus:before {\n  content: \"\\f068\";\n}\n.icon-asterisk:before {\n  content: \"\\f069\";\n}\n.icon-exclamation-sign:before {\n  content: \"\\f06a\";\n}\n.icon-gift:before {\n  content: \"\\f06b\";\n}\n.icon-leaf:before {\n  content: \"\\f06c\";\n}\n.icon-fire:before {\n  content: \"\\f06d\";\n}\n.icon-eye-open:before {\n  content: \"\\f06e\";\n}\n.icon-eye-close:before {\n  content: \"\\f070\";\n}\n.icon-warning-sign:before {\n  content: \"\\f071\";\n}\n.icon-plane:before {\n  content: \"\\f072\";\n}\n.icon-calendar:before {\n  content: \"\\f073\";\n}\n.icon-random:before {\n  content: \"\\f074\";\n}\n.icon-comment:before {\n  content: \"\\f075\";\n}\n.icon-magnet:before {\n  content: \"\\f076\";\n}\n.icon-chevron-up:before {\n  content: \"\\f077\";\n}\n.icon-chevron-down:before {\n  content: \"\\f078\";\n}\n.icon-retweet:before {\n  content: \"\\f079\";\n}\n.icon-shopping-cart:before {\n  content: \"\\f07a\";\n}\n.icon-folder-close:before {\n  content: \"\\f07b\";\n}\n.icon-folder-open:before {\n  content: \"\\f07c\";\n}\n.icon-resize-vertical:before {\n  content: \"\\f07d\";\n}\n.icon-resize-horizontal:before {\n  content: \"\\f07e\";\n}\n.icon-bar-chart:before {\n  content: \"\\f080\";\n}\n.icon-twitter-sign:before {\n  content: \"\\f081\";\n}\n.icon-facebook-sign:before {\n  content: \"\\f082\";\n}\n.icon-camera-retro:before {\n  content: \"\\f083\";\n}\n.icon-key:before {\n  content: \"\\f084\";\n}\n.icon-gears:before,\n.icon-cogs:before {\n  content: \"\\f085\";\n}\n.icon-comments:before {\n  content: \"\\f086\";\n}\n.icon-thumbs-up-alt:before {\n  content: \"\\f087\";\n}\n.icon-thumbs-down-alt:before {\n  content: \"\\f088\";\n}\n.icon-star-half:before {\n  content: \"\\f089\";\n}\n.icon-heart-empty:before {\n  content: \"\\f08a\";\n}\n.icon-signout:before {\n  content: \"\\f08b\";\n}\n.icon-linkedin-sign:before {\n  content: \"\\f08c\";\n}\n.icon-pushpin:before {\n  content: \"\\f08d\";\n}\n.icon-external-link:before {\n  content: \"\\f08e\";\n}\n.icon-signin:before {\n  content: \"\\f090\";\n}\n.icon-trophy:before {\n  content: \"\\f091\";\n}\n.icon-github-sign:before {\n  content: \"\\f092\";\n}\n.icon-upload-alt:before {\n  content: \"\\f093\";\n}\n.icon-lemon:before {\n  content: \"\\f094\";\n}\n.icon-phone:before {\n  content: \"\\f095\";\n}\n.icon-unchecked:before,\n.icon-check-empty:before {\n  content: \"\\f096\";\n}\n.icon-bookmark-empty:before {\n  content: \"\\f097\";\n}\n.icon-phone-sign:before {\n  content: \"\\f098\";\n}\n.icon-twitter:before {\n  content: \"\\f099\";\n}\n.icon-facebook:before {\n  content: \"\\f09a\";\n}\n.icon-github:before {\n  content: \"\\f09b\";\n}\n.icon-unlock:before {\n  content: \"\\f09c\";\n}\n.icon-credit-card:before {\n  content: \"\\f09d\";\n}\n.icon-rss:before {\n  content: \"\\f09e\";\n}\n.icon-hdd:before {\n  content: \"\\f0a0\";\n}\n.icon-bullhorn:before {\n  content: \"\\f0a1\";\n}\n.icon-bell:before {\n  content: \"\\f0a2\";\n}\n.icon-certificate:before {\n  content: \"\\f0a3\";\n}\n.icon-hand-right:before {\n  content: \"\\f0a4\";\n}\n.icon-hand-left:before {\n  content: \"\\f0a5\";\n}\n.icon-hand-up:before {\n  content: \"\\f0a6\";\n}\n.icon-hand-down:before {\n  content: \"\\f0a7\";\n}\n.icon-circle-arrow-left:before {\n  content: \"\\f0a8\";\n}\n.icon-circle-arrow-right:before {\n  content: \"\\f0a9\";\n}\n.icon-circle-arrow-up:before {\n  content: \"\\f0aa\";\n}\n.icon-circle-arrow-down:before {\n  content: \"\\f0ab\";\n}\n.icon-globe:before {\n  content: \"\\f0ac\";\n}\n.icon-wrench:before {\n  content: \"\\f0ad\";\n}\n.icon-tasks:before {\n  content: \"\\f0ae\";\n}\n.icon-filter:before {\n  content: \"\\f0b0\";\n}\n.icon-briefcase:before {\n  content: \"\\f0b1\";\n}\n.icon-fullscreen:before {\n  content: \"\\f0b2\";\n}\n.icon-group:before {\n  content: \"\\f0c0\";\n}\n.icon-link:before {\n  content: \"\\f0c1\";\n}\n.icon-cloud:before {\n  content: \"\\f0c2\";\n}\n.icon-beaker:before {\n  content: \"\\f0c3\";\n}\n.icon-cut:before {\n  content: \"\\f0c4\";\n}\n.icon-copy:before {\n  content: \"\\f0c5\";\n}\n.icon-paperclip:before,\n.icon-paper-clip:before {\n  content: \"\\f0c6\";\n}\n.icon-save:before {\n  content: \"\\f0c7\";\n}\n.icon-sign-blank:before {\n  content: \"\\f0c8\";\n}\n.icon-reorder:before {\n  content: \"\\f0c9\";\n}\n.icon-list-ul:before {\n  content: \"\\f0ca\";\n}\n.icon-list-ol:before {\n  content: \"\\f0cb\";\n}\n.icon-strikethrough:before {\n  content: \"\\f0cc\";\n}\n.icon-underline:before {\n  content: \"\\f0cd\";\n}\n.icon-table:before {\n  content: \"\\f0ce\";\n}\n.icon-magic:before {\n  content: \"\\f0d0\";\n}\n.icon-truck:before {\n  content: \"\\f0d1\";\n}\n.icon-pinterest:before {\n  content: \"\\f0d2\";\n}\n.icon-pinterest-sign:before {\n  content: \"\\f0d3\";\n}\n.icon-google-plus-sign:before {\n  content: \"\\f0d4\";\n}\n.icon-google-plus:before {\n  content: \"\\f0d5\";\n}\n.icon-money:before {\n  content: \"\\f0d6\";\n}\n.icon-caret-down:before {\n  content: \"\\f0d7\";\n}\n.icon-caret-up:before {\n  content: \"\\f0d8\";\n}\n.icon-caret-left:before {\n  content: \"\\f0d9\";\n}\n.icon-caret-right:before {\n  content: \"\\f0da\";\n}\n.icon-columns:before {\n  content: \"\\f0db\";\n}\n.icon-sort:before {\n  content: \"\\f0dc\";\n}\n.icon-sort-down:before {\n  content: \"\\f0dd\";\n}\n.icon-sort-up:before {\n  content: \"\\f0de\";\n}\n.icon-envelope:before {\n  content: \"\\f0e0\";\n}\n.icon-linkedin:before {\n  content: \"\\f0e1\";\n}\n.icon-rotate-left:before,\n.icon-undo:before {\n  content: \"\\f0e2\";\n}\n.icon-legal:before {\n  content: \"\\f0e3\";\n}\n.icon-dashboard:before {\n  content: \"\\f0e4\";\n}\n.icon-comment-alt:before {\n  content: \"\\f0e5\";\n}\n.icon-comments-alt:before {\n  content: \"\\f0e6\";\n}\n.icon-bolt:before {\n  content: \"\\f0e7\";\n}\n.icon-sitemap:before {\n  content: \"\\f0e8\";\n}\n.icon-umbrella:before {\n  content: \"\\f0e9\";\n}\n.icon-paste:before {\n  content: \"\\f0ea\";\n}\n.icon-lightbulb:before {\n  content: \"\\f0eb\";\n}\n.icon-exchange:before {\n  content: \"\\f0ec\";\n}\n.icon-cloud-download:before {\n  content: \"\\f0ed\";\n}\n.icon-cloud-upload:before {\n  content: \"\\f0ee\";\n}\n.icon-user-md:before {\n  content: \"\\f0f0\";\n}\n.icon-stethoscope:before {\n  content: \"\\f0f1\";\n}\n.icon-suitcase:before {\n  content: \"\\f0f2\";\n}\n.icon-bell-alt:before {\n  content: \"\\f0f3\";\n}\n.icon-coffee:before {\n  content: \"\\f0f4\";\n}\n.icon-food:before {\n  content: \"\\f0f5\";\n}\n.icon-file-text-alt:before {\n  content: \"\\f0f6\";\n}\n.icon-building:before {\n  content: \"\\f0f7\";\n}\n.icon-hospital:before {\n  content: \"\\f0f8\";\n}\n.icon-ambulance:before {\n  content: \"\\f0f9\";\n}\n.icon-medkit:before {\n  content: \"\\f0fa\";\n}\n.icon-fighter-jet:before {\n  content: \"\\f0fb\";\n}\n.icon-beer:before {\n  content: \"\\f0fc\";\n}\n.icon-h-sign:before {\n  content: \"\\f0fd\";\n}\n.icon-plus-sign-alt:before {\n  content: \"\\f0fe\";\n}\n.icon-double-angle-left:before {\n  content: \"\\f100\";\n}\n.icon-double-angle-right:before {\n  content: \"\\f101\";\n}\n.icon-double-angle-up:before {\n  content: \"\\f102\";\n}\n.icon-double-angle-down:before {\n  content: \"\\f103\";\n}\n.icon-angle-left:before {\n  content: \"\\f104\";\n}\n.icon-angle-right:before {\n  content: \"\\f105\";\n}\n.icon-angle-up:before {\n  content: \"\\f106\";\n}\n.icon-angle-down:before {\n  content: \"\\f107\";\n}\n.icon-desktop:before {\n  content: \"\\f108\";\n}\n.icon-laptop:before {\n  content: \"\\f109\";\n}\n.icon-tablet:before {\n  content: \"\\f10a\";\n}\n.icon-mobile-phone:before {\n  content: \"\\f10b\";\n}\n.icon-circle-blank:before {\n  content: \"\\f10c\";\n}\n.icon-quote-left:before {\n  content: \"\\f10d\";\n}\n.icon-quote-right:before {\n  content: \"\\f10e\";\n}\n.icon-spinner:before {\n  content: \"\\f110\";\n}\n.icon-circle:before {\n  content: \"\\f111\";\n}\n.icon-mail-reply:before,\n.icon-reply:before {\n  content: \"\\f112\";\n}\n.icon-github-alt:before {\n  content: \"\\f113\";\n}\n.icon-folder-close-alt:before {\n  content: \"\\f114\";\n}\n.icon-folder-open-alt:before {\n  content: \"\\f115\";\n}\n.icon-expand-alt:before {\n  content: \"\\f116\";\n}\n.icon-collapse-alt:before {\n  content: \"\\f117\";\n}\n.icon-smile:before {\n  content: \"\\f118\";\n}\n.icon-frown:before {\n  content: \"\\f119\";\n}\n.icon-meh:before {\n  content: \"\\f11a\";\n}\n.icon-gamepad:before {\n  content: \"\\f11b\";\n}\n.icon-keyboard:before {\n  content: \"\\f11c\";\n}\n.icon-flag-alt:before {\n  content: \"\\f11d\";\n}\n.icon-flag-checkered:before {\n  content: \"\\f11e\";\n}\n.icon-terminal:before {\n  content: \"\\f120\";\n}\n.icon-code:before {\n  content: \"\\f121\";\n}\n.icon-reply-all:before {\n  content: \"\\f122\";\n}\n.icon-mail-reply-all:before {\n  content: \"\\f122\";\n}\n.icon-star-half-full:before,\n.icon-star-half-empty:before {\n  content: \"\\f123\";\n}\n.icon-location-arrow:before {\n  content: \"\\f124\";\n}\n.icon-crop:before {\n  content: \"\\f125\";\n}\n.icon-code-fork:before {\n  content: \"\\f126\";\n}\n.icon-unlink:before {\n  content: \"\\f127\";\n}\n.icon-question:before {\n  content: \"\\f128\";\n}\n.icon-info:before {\n  content: \"\\f129\";\n}\n.icon-exclamation:before {\n  content: \"\\f12a\";\n}\n.icon-superscript:before {\n  content: \"\\f12b\";\n}\n.icon-subscript:before {\n  content: \"\\f12c\";\n}\n.icon-eraser:before {\n  content: \"\\f12d\";\n}\n.icon-puzzle-piece:before {\n  content: \"\\f12e\";\n}\n.icon-microphone:before {\n  content: \"\\f130\";\n}\n.icon-microphone-off:before {\n  content: \"\\f131\";\n}\n.icon-shield:before {\n  content: \"\\f132\";\n}\n.icon-calendar-empty:before {\n  content: \"\\f133\";\n}\n.icon-fire-extinguisher:before {\n  content: \"\\f134\";\n}\n.icon-rocket:before {\n  content: \"\\f135\";\n}\n.icon-maxcdn:before {\n  content: \"\\f136\";\n}\n.icon-chevron-sign-left:before {\n  content: \"\\f137\";\n}\n.icon-chevron-sign-right:before {\n  content: \"\\f138\";\n}\n.icon-chevron-sign-up:before {\n  content: \"\\f139\";\n}\n.icon-chevron-sign-down:before {\n  content: \"\\f13a\";\n}\n.icon-html5:before {\n  content: \"\\f13b\";\n}\n.icon-css3:before {\n  content: \"\\f13c\";\n}\n.icon-anchor:before {\n  content: \"\\f13d\";\n}\n.icon-unlock-alt:before {\n  content: \"\\f13e\";\n}\n.icon-bullseye:before {\n  content: \"\\f140\";\n}\n.icon-ellipsis-horizontal:before {\n  content: \"\\f141\";\n}\n.icon-ellipsis-vertical:before {\n  content: \"\\f142\";\n}\n.icon-rss-sign:before {\n  content: \"\\f143\";\n}\n.icon-play-sign:before {\n  content: \"\\f144\";\n}\n.icon-ticket:before {\n  content: \"\\f145\";\n}\n.icon-minus-sign-alt:before {\n  content: \"\\f146\";\n}\n.icon-check-minus:before {\n  content: \"\\f147\";\n}\n.icon-level-up:before {\n  content: \"\\f148\";\n}\n.icon-level-down:before {\n  content: \"\\f149\";\n}\n.icon-check-sign:before {\n  content: \"\\f14a\";\n}\n.icon-edit-sign:before {\n  content: \"\\f14b\";\n}\n.icon-external-link-sign:before {\n  content: \"\\f14c\";\n}\n.icon-share-sign:before {\n  content: \"\\f14d\";\n}\n.icon-compass:before {\n  content: \"\\f14e\";\n}\n.icon-collapse:before {\n  content: \"\\f150\";\n}\n.icon-collapse-top:before {\n  content: \"\\f151\";\n}\n.icon-expand:before {\n  content: \"\\f152\";\n}\n.icon-euro:before,\n.icon-eur:before {\n  content: \"\\f153\";\n}\n.icon-gbp:before {\n  content: \"\\f154\";\n}\n.icon-dollar:before,\n.icon-usd:before {\n  content: \"\\f155\";\n}\n.icon-rupee:before,\n.icon-inr:before {\n  content: \"\\f156\";\n}\n.icon-yen:before,\n.icon-jpy:before {\n  content: \"\\f157\";\n}\n.icon-renminbi:before,\n.icon-cny:before {\n  content: \"\\f158\";\n}\n.icon-won:before,\n.icon-krw:before {\n  content: \"\\f159\";\n}\n.icon-bitcoin:before,\n.icon-btc:before {\n  content: \"\\f15a\";\n}\n.icon-file:before {\n  content: \"\\f15b\";\n}\n.icon-file-text:before {\n  content: \"\\f15c\";\n}\n.icon-sort-by-alphabet:before {\n  content: \"\\f15d\";\n}\n.icon-sort-by-alphabet-alt:before {\n  content: \"\\f15e\";\n}\n.icon-sort-by-attributes:before {\n  content: \"\\f160\";\n}\n.icon-sort-by-attributes-alt:before {\n  content: \"\\f161\";\n}\n.icon-sort-by-order:before {\n  content: \"\\f162\";\n}\n.icon-sort-by-order-alt:before {\n  content: \"\\f163\";\n}\n.icon-thumbs-up:before {\n  content: \"\\f164\";\n}\n.icon-thumbs-down:before {\n  content: \"\\f165\";\n}\n.icon-youtube-sign:before {\n  content: \"\\f166\";\n}\n.icon-youtube:before {\n  content: \"\\f167\";\n}\n.icon-xing:before {\n  content: \"\\f168\";\n}\n.icon-xing-sign:before {\n  content: \"\\f169\";\n}\n.icon-youtube-play:before {\n  content: \"\\f16a\";\n}\n.icon-dropbox:before {\n  content: \"\\f16b\";\n}\n.icon-stackexchange:before {\n  content: \"\\f16c\";\n}\n.icon-instagram:before {\n  content: \"\\f16d\";\n}\n.icon-flickr:before {\n  content: \"\\f16e\";\n}\n.icon-adn:before {\n  content: \"\\f170\";\n}\n.icon-bitbucket:before {\n  content: \"\\f171\";\n}\n.icon-bitbucket-sign:before {\n  content: \"\\f172\";\n}\n.icon-tumblr:before {\n  content: \"\\f173\";\n}\n.icon-tumblr-sign:before {\n  content: \"\\f174\";\n}\n.icon-long-arrow-down:before {\n  content: \"\\f175\";\n}\n.icon-long-arrow-up:before {\n  content: \"\\f176\";\n}\n.icon-long-arrow-left:before {\n  content: \"\\f177\";\n}\n.icon-long-arrow-right:before {\n  content: \"\\f178\";\n}\n.icon-apple:before {\n  content: \"\\f179\";\n}\n.icon-windows:before {\n  content: \"\\f17a\";\n}\n.icon-android:before {\n  content: \"\\f17b\";\n}\n.icon-linux:before {\n  content: \"\\f17c\";\n}\n.icon-dribbble:before {\n  content: \"\\f17d\";\n}\n.icon-skype:before {\n  content: \"\\f17e\";\n}\n.icon-foursquare:before {\n  content: \"\\f180\";\n}\n.icon-trello:before {\n  content: \"\\f181\";\n}\n.icon-female:before {\n  content: \"\\f182\";\n}\n.icon-male:before {\n  content: \"\\f183\";\n}\n.icon-gittip:before {\n  content: \"\\f184\";\n}\n.icon-sun:before {\n  content: \"\\f185\";\n}\n.icon-moon:before {\n  content: \"\\f186\";\n}\n.icon-archive:before {\n  content: \"\\f187\";\n}\n.icon-bug:before {\n  content: \"\\f188\";\n}\n.icon-vk:before {\n  content: \"\\f189\";\n}\n.icon-weibo:before {\n  content: \"\\f18a\";\n}\n.icon-renren:before {\n  content: \"\\f18b\";\n}\n"; s.id = "css-font-awesome"; document.head.appendChild(s);}, "data/stylesheets/introjs": function(exports, require, module) {s = document.createElement('style'); s.innerHTML = ".introjs-overlay {\n  position: absolute;\n  z-index: 999999;\n  background-color: #000;\n  opacity: 0;\n  -webkit-transition: all 0.3s ease-out;\n     -moz-transition: all 0.3s ease-out;\n      -ms-transition: all 0.3s ease-out;\n       -o-transition: all 0.3s ease-out;\n          transition: all 0.3s ease-out;\n}\n\n.introjs-showElement {\n  z-index: 9999999;\n}\n\n.introjs-relativePosition {\n  position: relative;\n}\n\n.introjs-helperLayer {\n  position: absolute;\n  z-index: 9999998;\n  background-color: rgba(255,255,255,.9);\n  border: 1px solid rgba(0,0,0,.5);\n  border-radius: 4px;\n  box-shadow: 0 2px 15px rgba(0,0,0,.4);\n  -webkit-transition: all 0.3s ease-out;\n     -moz-transition: all 0.3s ease-out;\n      -ms-transition: all 0.3s ease-out;\n       -o-transition: all 0.3s ease-out;\n          transition: all 0.3s ease-out;\n}\n\n.introjs-helperNumberLayer {\n  position: absolute;\n  top: -16px;\n  left: -16px;\n  z-index: 9999999999 !important;\n  padding: 2px;\n  font-family: Arial, verdana, tahoma;\n  font-size: 13px;\n  font-weight: bold;\n  color: white;\n  text-align: center;\n  text-shadow: 1px 1px 1px rgba(0,0,0,.3);\n  background: #ff3019; /* Old browsers */\n  background: -webkit-linear-gradient(top, #ff3019 0%, #cf0404 100%); /* Chrome10+,Safari5.1+ */\n  background: -webkit-gradient(linear, left top, left bottom, color-stop(0%, #ff3019), color-stop(100%, #cf0404)); /* Chrome,Safari4+ */\n  background:    -moz-linear-gradient(top, #ff3019 0%, #cf0404 100%); /* FF3.6+ */\n  background:     -ms-linear-gradient(top, #ff3019 0%, #cf0404 100%); /* IE10+ */\n  background:      -o-linear-gradient(top, #ff3019 0%, #cf0404 100%); /* Opera 11.10+ */\n  background:         linear-gradient(to bottom, #ff3019 0%, #cf0404 100%);  /* W3C */\n  width: 20px;\n  height:20px;\n  line-height: 20px;\n  border: 3px solid white;\n  border-radius: 50%;\n  filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#ff3019', endColorstr='#cf0404', GradientType=0); /* IE6-9 */ \n  filter: progid:DXImageTransform.Microsoft.Shadow(direction=135, strength=2, color=ff0000); /* IE10 text shadows */\n  box-shadow: 0 2px 5px rgba(0,0,0,.4);\n}\n\n.introjs-arrow {\n  border: 5px solid white;\n  content:'';\n  position: absolute;\n}\n.introjs-arrow.top {\n  top: -10px;\n  border-top-color:transparent;\n  border-right-color:transparent;\n  border-bottom-color:white;\n  border-left-color:transparent;\n}\n.introjs-arrow.right {\n  right: -10px;\n  top: 10px;\n  border-top-color:transparent;\n  border-right-color:transparent;\n  border-bottom-color:transparent;\n  border-left-color:white;\n}\n.introjs-arrow.bottom {\n  bottom: -10px;\n  border-top-color:white;\n  border-right-color:transparent;\n  border-bottom-color:transparent;\n  border-left-color:transparent;\n}\n.introjs-arrow.left {\n  left: -10px;\n  top: 10px;\n  border-top-color:transparent;\n  border-right-color:white;\n  border-bottom-color:transparent;\n  border-left-color:transparent;\n}\n\n.introjs-tooltip {\n  position: absolute;\n  padding: 10px;\n  background-color: white;\n  min-width: 200px;\n  border-radius: 3px;\n  box-shadow: 0 1px 10px rgba(0,0,0,.4);\n  -webkit-transition: opacity 0.1s ease-out;\n     -moz-transition: opacity 0.1s ease-out;\n      -ms-transition: opacity 0.1s ease-out;\n       -o-transition: opacity 0.1s ease-out;\n          transition: opacity 0.1s ease-out;\n}\n\n.introjs-tooltipbuttons {\n  text-align: right;\n}\n\n/* \n Buttons style by http://nicolasgallagher.com/lab/css3-github-buttons/ \n Changed by Afshin Mehrabani\n*/\n.introjs-button {\n  position: relative;\n  overflow: visible;\n  display: inline-block;\n  padding: 0.3em 0.8em;\n  border: 1px solid #d4d4d4;\n  margin: 0;\n  text-decoration: none;\n  text-shadow: 1px 1px 0 #fff;\n  font: 11px/normal sans-serif;\n  color: #333;\n  white-space: nowrap;\n  cursor: pointer;\n  outline: none;\n  background-color: #ececec;\n  background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#f4f4f4), to(#ececec));\n  background-image: -moz-linear-gradient(#f4f4f4, #ececec);\n  background-image: -o-linear-gradient(#f4f4f4, #ececec);\n  background-image: linear-gradient(#f4f4f4, #ececec);\n  -webkit-background-clip: padding;\n  -moz-background-clip: padding;\n  -o-background-clip: padding-box;\n  /*background-clip: padding-box;*/ /* commented out due to Opera 11.10 bug */\n  -webkit-border-radius: 0.2em;\n  -moz-border-radius: 0.2em;\n  border-radius: 0.2em;\n  /* IE hacks */\n  zoom: 1;\n  *display: inline;\n  margin-top: 10px;\n}\n\n.introjs-button:hover {\n  border-color: #bcbcbc;\n  text-decoration: none; \n  box-shadow: 0px 1px 1px #e3e3e3;\n}\n\n.introjs-button:focus,\n.introjs-button:active {\n  background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ececec), to(#f4f4f4));\n  background-image: -moz-linear-gradient(#ececec, #f4f4f4);\n  background-image: -o-linear-gradient(#ececec, #f4f4f4);\n  background-image: linear-gradient(#ececec, #f4f4f4);\n}\n\n/* overrides extra padding on button elements in Firefox */\n.introjs-button::-moz-focus-inner {\n  padding: 0;\n  border: 0;\n}\n\n.introjs-skipbutton {\n  margin-right: 5px;\n  color: #7a7a7a;\n}\n\n.introjs-prevbutton {\n  -webkit-border-radius: 0.2em 0 0 0.2em;\n  -moz-border-radius: 0.2em 0 0 0.2em;\n  border-radius: 0.2em 0 0 0.2em;\n  border-right: none;\n}\n\n.introjs-nextbutton {\n  -webkit-border-radius: 0 0.2em 0.2em 0;\n  -moz-border-radius: 0 0.2em 0.2em 0;\n  border-radius: 0 0.2em 0.2em 0;\n}\n\n.introjs-disabled, .introjs-disabled:hover {\n  color: #9a9a9a;\n  border-color: #d4d4d4;\n  box-shadow: none;\n  cursor: default;\n  background-color: #f4f4f4;\n  background-image: none;\n}"; s.id = "css-introjs"; document.head.appendChild(s);}, "data/views/menu": function(exports, require, module) {module.exports = function(__obj) {
   if (!__obj) __obj = {};
   var __out = [], __capture = function(callback) {
     var out = __out, result;
@@ -27892,22 +29145,14 @@ return window.JSONImport['ro-RO'] = module.exports = item;}, "data/stylesheets/f
   }
   (function() {
     (function() {
-      __out.push('<aside id="secondary" ng-class="{false: \'inactive\', true: \'active\'}[node.$viewmore]">\n\t<label for="relation{{node.$index}}" id="relationplaceholder">\n\t\t<span ');
-    
-      __out.push(__sanitize(_T("Relation between this node and the previous.")));
-    
-      __out.push('></span>\n\t\t<div>\n\t\t\t<input type="text" ng-model="node.relation" ng-change="replicate(node, \'relation\')" id="relation{{node.$index}}">\n\t\t</div>\n\t</label>\n\t<label for="node{{node.$index}}" id="noteplacehoder">\n\t\t<span ');
-    
-      __out.push(__sanitize(_T("Notes associated")));
-    
-      __out.push('></span>\n\t\t<div>\n\t\t\t<textarea id="node{{node.$index}}" ng-model="node.note" ng-change="replicate(node, \'note\')"></textarea>\n\t\t</div>\n\t</label>\n</aside>');
+      __out.push('<nav id="itmenuwindow">\n\t<li id="scroll-average"><span></span>% Average Scroll</li>\n\t<li id="click-heat">Click Heatmap</li>\n\t<li id="move-heat">Move Heatmap</li>\n\t<li id="hover-heat">Hover Heatmap</li>\n\t<li id="combined-heat">Combined Heatmap</li>\n\t<li id="remove-heat">Remove Heatmap</li>\n</nav>');
     
     }).call(this);
     
   }).call(__obj);
   __obj.safe = __objSafe, __obj.escape = __escape;
   return __out.join('');
-}}, "data/views/document/_main": function(exports, require, module) {module.exports = function(__obj) {
+}}, "data/views/modal": function(exports, require, module) {module.exports = function(__obj) {
   if (!__obj) __obj = {};
   var __out = [], __capture = function(callback) {
     var out = __out, result;
@@ -27946,26 +29191,14 @@ return window.JSONImport['ro-RO'] = module.exports = item;}, "data/stylesheets/f
   }
   (function() {
     (function() {
-      __out.push('<aside id="primary">\n\t<nav>\n\t');
-    
-      __out.push(DepMan.render(["document", "_misc"]));
-    
-      __out.push('\n\t</nav>\t\t\t\t\n\t<label for="text{{node.$index}}">\n\t\t<span ');
-    
-      __out.push(__sanitize(_T("Node Text")));
-    
-      __out.push('></span>\n\t\t<div>\n\t\t\t<input type="text" ng-model="node.text" ng-change="replicate(node, \'text\')"/>\n\t\t</div>\n\t</label>\n\t<nav id="primary">\n\t');
-    
-      __out.push(DepMan.render(["document", "_nav"]));
-    
-      __out.push('\n\t</nav>\n</aside>\t\t\t');
+      __out.push('<section ng-controller=\'Modal\' id=\'modal-window\'>\n\t<section>\n\t<header id="modal-title-area"></header>\n\t  <nav>\n\t\t<li id="modal-close-button"><i class="icon-remove"></i></li>\n\t\t<li id="modal-fullscren-button"><i class="icon-fullscreen"></i></li>\n\t  </nav>\n\t  <article id="modal-content-area"></article>\n\t</section>\n</section>\n');
     
     }).call(this);
     
   }).call(__obj);
   __obj.safe = __objSafe, __obj.escape = __escape;
   return __out.join('');
-}}, "data/views/document/_misc": function(exports, require, module) {module.exports = function(__obj) {
+}}, "data/views/unlock": function(exports, require, module) {module.exports = function(__obj) {
   if (!__obj) __obj = {};
   var __out = [], __capture = function(callback) {
     var out = __out, result;
@@ -28004,893 +29237,7 @@ return window.JSONImport['ro-RO'] = module.exports = item;}, "data/stylesheets/f
   }
   (function() {
     (function() {
-      __out.push('<label for="folding{{node.$index}}" ng-class="{\'determinate\': \'active\', \'indeterminate\': \'active\', \'checked\': \'inactive\', \'unchecked\': \'inactive\'}[node.status]">\n\t<input type="checkbox" id="folding{{node.$index}}" ng-model="node.$folded" ng-change="refresh(node)"/>\n\t<i ng-class="{true: \'icon-chevron-right\', false: \'icon-chevron-down\'}[node.$folded]"></i>\n</label>\n<label for="status{{node.$index}}">\n\t<input type="checkbox" id="status{{node.$index}}" ng-model="node.$status" ng-change="changeStatus(node)">\n\t<i ng-class="{\'checked\': \'icon-check\', \'unchecked\': \'icon-check-empty\', \'determinate\': \'icon-circle\', \'indeterminate\': \'icon-adjust\'}[node.status]"></i>\n</label>');
-    
-    }).call(this);
-    
-  }).call(__obj);
-  __obj.safe = __objSafe, __obj.escape = __escape;
-  return __out.join('');
-}}, "data/views/document/_nav": function(exports, require, module) {module.exports = function(__obj) {
-  if (!__obj) __obj = {};
-  var __out = [], __capture = function(callback) {
-    var out = __out, result;
-    __out = [];
-    callback.call(this);
-    result = __out.join('');
-    __out = out;
-    return __safe(result);
-  }, __sanitize = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else if (typeof value !== 'undefined' && value != null) {
-      return __escape(value);
-    } else {
-      return '';
-    }
-  }, __safe, __objSafe = __obj.safe, __escape = __obj.escape;
-  __safe = __obj.safe = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else {
-      if (!(typeof value !== 'undefined' && value != null)) value = '';
-      var result = new String(value);
-      result.ecoSafe = true;
-      return result;
-    }
-  };
-  if (!__escape) {
-    __escape = __obj.escape = function(value) {
-      return ('' + value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    };
-  }
-  (function() {
-    (function() {
-      __out.push('<li ng-click="add(node)" class="add button"><i class="icon-plus"></i></li>\n<li ng-click="remove(node)" class="remove button"><i class="icon-remove"></i></li>\n<li ng-click="modalEdit(node)" class="modal button"><i class="icon-gear"></i></li>\n<li class="button showhide">\n\t<label for="showhide{{node.$index}}"><input type="checkbox" ng-model="node.$viewmore" id="showhide{{node.$index}}"><i ng-class="{true: \'icon-eye-open\', false: \'icon-eye-close\'}[node.$viewmore]"></i></label>\n</li>');
-    
-    }).call(this);
-    
-  }).call(__obj);
-  __obj.safe = __objSafe, __obj.escape = __escape;
-  return __out.join('');
-}}, "data/views/document/editform": function(exports, require, module) {module.exports = function(__obj) {
-  if (!__obj) __obj = {};
-  var __out = [], __capture = function(callback) {
-    var out = __out, result;
-    __out = [];
-    callback.call(this);
-    result = __out.join('');
-    __out = out;
-    return __safe(result);
-  }, __sanitize = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else if (typeof value !== 'undefined' && value != null) {
-      return __escape(value);
-    } else {
-      return '';
-    }
-  }, __safe, __objSafe = __obj.safe, __escape = __obj.escape;
-  __safe = __obj.safe = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else {
-      if (!(typeof value !== 'undefined' && value != null)) value = '';
-      var result = new String(value);
-      result.ecoSafe = true;
-      return result;
-    }
-  };
-  if (!__escape) {
-    __escape = __obj.escape = function(value) {
-      return ('' + value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    };
-  }
-  (function() {
-    (function() {
-      __out.push('<div id="editform">\n\t<div id="textcontainer"><label for="text" ');
-    
-      __out.push(__sanitize(_T("The text of the node")));
-    
-      __out.push('></label><input type="text" id="text"></div>\n\t<div id="checkcontainer"><label for="checked" ');
-    
-      __out.push(__sanitize(_T("Is this node checked?")));
-    
-      __out.push('></label><input type="checkbox"  id="checked"></div>\n\t<div id="foldcontainer"><label for="folded" ');
-    
-      __out.push(__sanitize(_T("Is this node folded?")));
-    
-      __out.push('></label><input type="checkbox" id="folded"></div>\n\t<div id="relationcontainer"><label for="relation" ');
-    
-      __out.push(__sanitize(_T("Relation with its parent")));
-    
-      __out.push('></label><input type="text" id="relation"></div>\n\t<div id="notecontainer"><label for="note" ');
-    
-      __out.push(__sanitize(_T("Notes attached")));
-    
-      __out.push('></label><textarea id="note"></textarea></div>\n\t<br>\n\t<div id="buttoncontainer">\n\t\t<input type="button" id="addnode" ');
-    
-      __out.push(__sanitize(_T("Add a new node", "value")));
-    
-      __out.push('>\n\t\t<input type="button" id="removenode" ');
-    
-      __out.push(__sanitize(_T("Remove this node", "value")));
-    
-      __out.push('>\n\t</div>\n\t<br>\n</div>');
-    
-    }).call(this);
-    
-  }).call(__obj);
-  __obj.safe = __objSafe, __obj.escape = __escape;
-  return __out.join('');
-}}, "data/views/document/index": function(exports, require, module) {module.exports = function(__obj) {
-  if (!__obj) __obj = {};
-  var __out = [], __capture = function(callback) {
-    var out = __out, result;
-    __out = [];
-    callback.call(this);
-    result = __out.join('');
-    __out = out;
-    return __safe(result);
-  }, __sanitize = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else if (typeof value !== 'undefined' && value != null) {
-      return __escape(value);
-    } else {
-      return '';
-    }
-  }, __safe, __objSafe = __obj.safe, __escape = __obj.escape;
-  __safe = __obj.safe = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else {
-      if (!(typeof value !== 'undefined' && value != null)) value = '';
-      var result = new String(value);
-      result.ecoSafe = true;
-      return result;
-    }
-  };
-  if (!__escape) {
-    __escape = __obj.escape = function(value) {
-      return ('' + value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    };
-  }
-  (function() {
-    (function() {
-      __out.push('<section ng-controller="Document" ng-class="{0: \'sidebarclosed\', 1: \'sidebaropen\'}[runtime.props[\'sidebar-state\']]">\n\t<header>\n\t\t{{activeDocument.title}} \n\t\t<nav>\n\t\t\t<li ng-click="runtime.set(\'document-state\', 1)" ng-class="{0: \'inactive\', 1: \'active\'}[runtime.props[\'document-state\']]"><i class="icon-sitemap"></i></li>\n\t\t\t<li ng-click="runtime.set(\'document-state\', 0)" ng-class="{0: \'active\', 1: \'inactive\'}[runtime.props[\'document-state\']]"><i class="icon-list"></i></li>\n\t\t</nav>\n\t</header>\n\t<section id="outline" ng-class="{1: \'inactive\', 0: \'active\'}[runtime.props[\'document-state\']]">\n\t\t<article ng-repeat="node in activeDocument.indexes" ng-class="{true: \'inactive\', false: \'active\'}[node.$hidden]" ng-style="getStyles(node)">\n\t\t \t');
-    
-      __out.push(DepMan.render(["document", "_main"]));
-    
-      __out.push('\n\t\t \t');
-    
-      __out.push(DepMan.render(["document", "_alt"]));
-    
-      __out.push('\n\t\t</article>\n\t\t<aside ng-click="addRoot()"><i class="icon-plus"></i></aside>\n\t</section>\n\t<section id="mindmap" ng-class="{0: \'inactive\', 1: \'active\'}[runtime.props[\'document-state\']]">\n\t\t<canvas></canvas>\n\t</section>\n</section>');
-    
-    }).call(this);
-    
-  }).call(__obj);
-  __obj.safe = __objSafe, __obj.escape = __escape;
-  return __out.join('');
-}}, "data/views/document/list": function(exports, require, module) {module.exports = function(__obj) {
-  if (!__obj) __obj = {};
-  var __out = [], __capture = function(callback) {
-    var out = __out, result;
-    __out = [];
-    callback.call(this);
-    result = __out.join('');
-    __out = out;
-    return __safe(result);
-  }, __sanitize = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else if (typeof value !== 'undefined' && value != null) {
-      return __escape(value);
-    } else {
-      return '';
-    }
-  }, __safe, __objSafe = __obj.safe, __escape = __obj.escape;
-  __safe = __obj.safe = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else {
-      if (!(typeof value !== 'undefined' && value != null)) value = '';
-      var result = new String(value);
-      result.ecoSafe = true;
-      return result;
-    }
-  };
-  if (!__escape) {
-    __escape = __obj.escape = function(value) {
-      return ('' + value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    };
-  }
-  (function() {
-    (function() {
-      __out.push('<section ng-controller="DocumentList">\n\t<nav>\n\t\t<div class="slider">\n\t\t\t<li ng-click="addDocument()"><i class="icon-plus"></i></li>\n\t\t\t<li ng-click="deleteDocument()"><i class="icon-remove"></i></li>\n\t\t\t<li ng-click="saveDocument()"><i class="icon-save"></i></li>\n\t\t\t<li ng-click="downloadDocument()"><i class="icon-cloud-download"></i></li>\n\t\t\t<li ng-click="uploadDocument()"><i class="icon-cloud-upload"></i></li>\n\t\t\t<li ng-click="duplicateDocument()"><i class="icon-copy"></i></li>\n\t\t</div>\n\t</nav>\n\t<article ng-repeat="(id, document) in models._reccords">\n\t\t<input type="text" ng-model="document.title" ngc-focus="switch(id)" ng-change="replicate()" />\n\t\t<small>{{id}}</small>\n\t</article>\n</section>\n');
-    
-    }).call(this);
-    
-  }).call(__obj);
-  __obj.safe = __objSafe, __obj.escape = __escape;
-  return __out.join('');
-}}, "data/views/help/tab1": function(exports, require, module) {module.exports = function(__obj) {
-  if (!__obj) __obj = {};
-  var __out = [], __capture = function(callback) {
-    var out = __out, result;
-    __out = [];
-    callback.call(this);
-    result = __out.join('');
-    __out = out;
-    return __safe(result);
-  }, __sanitize = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else if (typeof value !== 'undefined' && value != null) {
-      return __escape(value);
-    } else {
-      return '';
-    }
-  }, __safe, __objSafe = __obj.safe, __escape = __obj.escape;
-  __safe = __obj.safe = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else {
-      if (!(typeof value !== 'undefined' && value != null)) value = '';
-      var result = new String(value);
-      result.ecoSafe = true;
-      return result;
-    }
-  };
-  if (!__escape) {
-    __escape = __obj.escape = function(value) {
-      return ('' + value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    };
-  }
-  (function() {
-    (function() {
-      __out.push('<p>To start using the application, click on the eye button (<span class=\'key\'><i class="icon-eye-open"></i></span>) on the top left to open up the sidebar or use the keyboard shortcuts (<span class="key">⌘-[1-4]</span> / <span class="key">Control-[1-4]</span>) to access the individual tabs.</p>\n<p>The application supports two ways of viewing and editing the data. To move between them use the buttons on the upper right side of the application (<span class="key"><i class="icon-sitemap"></i></span> and <span class="key"><i class="icon-list"></i></span>) </p>');
-    
-    }).call(this);
-    
-  }).call(__obj);
-  __obj.safe = __objSafe, __obj.escape = __escape;
-  return __out.join('');
-}}, "data/views/help/tab2": function(exports, require, module) {module.exports = function(__obj) {
-  if (!__obj) __obj = {};
-  var __out = [], __capture = function(callback) {
-    var out = __out, result;
-    __out = [];
-    callback.call(this);
-    result = __out.join('');
-    __out = out;
-    return __safe(result);
-  }, __sanitize = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else if (typeof value !== 'undefined' && value != null) {
-      return __escape(value);
-    } else {
-      return '';
-    }
-  }, __safe, __objSafe = __obj.safe, __escape = __obj.escape;
-  __safe = __obj.safe = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else {
-      if (!(typeof value !== 'undefined' && value != null)) value = '';
-      var result = new String(value);
-      result.ecoSafe = true;
-      return result;
-    }
-  };
-  if (!__escape) {
-    __escape = __obj.escape = function(value) {
-      return ('' + value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    };
-  }
-  (function() {
-    (function() {
-      __out.push('<p>With the sidebar window you can change the tabs using the keyboard shortcuts using the keyboards explained earlier, or with the four tabs on the bottom (<span class="key"><i class="icon-list"></i></span>, <span class="key"><i class="icon-signal"></i></span>, <span class="key"><i class="icon-gear"></i></span>, <span class="key"><i class="icon-code"></i></span>).</p>');
-    
-    }).call(this);
-    
-  }).call(__obj);
-  __obj.safe = __objSafe, __obj.escape = __escape;
-  return __out.join('');
-}}, "data/views/help/tab3": function(exports, require, module) {module.exports = function(__obj) {
-  if (!__obj) __obj = {};
-  var __out = [], __capture = function(callback) {
-    var out = __out, result;
-    __out = [];
-    callback.call(this);
-    result = __out.join('');
-    __out = out;
-    return __safe(result);
-  }, __sanitize = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else if (typeof value !== 'undefined' && value != null) {
-      return __escape(value);
-    } else {
-      return '';
-    }
-  }, __safe, __objSafe = __obj.safe, __escape = __obj.escape;
-  __safe = __obj.safe = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else {
-      if (!(typeof value !== 'undefined' && value != null)) value = '';
-      var result = new String(value);
-      result.ecoSafe = true;
-      return result;
-    }
-  };
-  if (!__escape) {
-    __escape = __obj.escape = function(value) {
-      return ('' + value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    };
-  }
-  (function() {
-    (function() {
-      __out.push('<p>To connect to another client, access the server tab of the sidebar, copy your clientID (or scan the QR code) and give that code to the person that wants to connect to you. Then that person will input that code into the second input of the page, and then he will receive the data you are already editing.</p>\n<p>From that moment on, untill you reconnect, you two will be linked together. Any action you take will be replicated between you and your connection.</p>');
-    
-    }).call(this);
-    
-  }).call(__obj);
-  __obj.safe = __objSafe, __obj.escape = __escape;
-  return __out.join('');
-}}, "data/views/loading/index": function(exports, require, module) {module.exports = function(__obj) {
-  if (!__obj) __obj = {};
-  var __out = [], __capture = function(callback) {
-    var out = __out, result;
-    __out = [];
-    callback.call(this);
-    result = __out.join('');
-    __out = out;
-    return __safe(result);
-  }, __sanitize = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else if (typeof value !== 'undefined' && value != null) {
-      return __escape(value);
-    } else {
-      return '';
-    }
-  }, __safe, __objSafe = __obj.safe, __escape = __obj.escape;
-  __safe = __obj.safe = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else {
-      if (!(typeof value !== 'undefined' && value != null)) value = '';
-      var result = new String(value);
-      result.ecoSafe = true;
-      return result;
-    }
-  };
-  if (!__escape) {
-    __escape = __obj.escape = function(value) {
-      return ('' + value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    };
-  }
-  (function() {
-    (function() {
-      __out.push('<section id="loadingscreen">\n\t<section></section>\n\t<aside data-location=\'left\'></aside>\n\t<aside data-location=\'right\'></aside>\n\t<article>\n\t\t<div><p>Revelati</p></div>\n\t\t<span></span>\n\t\t<div><p>n</p></div>\n\t\t<p><span id="loadingmessage"></span></p>\n\t</article>\n</section>\n');
-    
-    }).call(this);
-    
-  }).call(__obj);
-  __obj.safe = __objSafe, __obj.escape = __escape;
-  return __out.join('');
-}}, "data/views/pages/help": function(exports, require, module) {module.exports = function(__obj) {
-  if (!__obj) __obj = {};
-  var __out = [], __capture = function(callback) {
-    var out = __out, result;
-    __out = [];
-    callback.call(this);
-    result = __out.join('');
-    __out = out;
-    return __safe(result);
-  }, __sanitize = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else if (typeof value !== 'undefined' && value != null) {
-      return __escape(value);
-    } else {
-      return '';
-    }
-  }, __safe, __objSafe = __obj.safe, __escape = __obj.escape;
-  __safe = __obj.safe = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else {
-      if (!(typeof value !== 'undefined' && value != null)) value = '';
-      var result = new String(value);
-      result.ecoSafe = true;
-      return result;
-    }
-  };
-  if (!__escape) {
-    __escape = __obj.escape = function(value) {
-      return ('' + value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    };
-  }
-  (function() {
-    (function() {
-      __out.push('<section class="help wrapper" ng-controller="Help" ng-click="verifyState($event)">\n\t<aside class="left" ng-click="changeState(-1)"></aside>\n\t<section>\n\t\t<article ng-repeat="doc in articles" ng-class="{true: \'active\', false: \'\'}[$index == runtime.props[\'help-state\']]" ng-bind-html-unsafe="doc">\n\t\t</article>\n\t</section>\n\t<aside class="right" ng-click="changeState(1)"></aside>\n\t<nav>\n\t\t<li ng-repeat="article in articles" ng-click="runtime.set(\'help-state\', $index)" ng-class="{true: \'active\', false: \'\'}[$index == runtime.props[\'help-state\']]"></li>\n\t</nav>\n</section>\n');
-    
-    }).call(this);
-    
-  }).call(__obj);
-  __obj.safe = __objSafe, __obj.escape = __escape;
-  return __out.join('');
-}}, "data/views/pages/landing-content": function(exports, require, module) {module.exports = function(__obj) {
-  if (!__obj) __obj = {};
-  var __out = [], __capture = function(callback) {
-    var out = __out, result;
-    __out = [];
-    callback.call(this);
-    result = __out.join('');
-    __out = out;
-    return __safe(result);
-  }, __sanitize = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else if (typeof value !== 'undefined' && value != null) {
-      return __escape(value);
-    } else {
-      return '';
-    }
-  }, __safe, __objSafe = __obj.safe, __escape = __obj.escape;
-  __safe = __obj.safe = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else {
-      if (!(typeof value !== 'undefined' && value != null)) value = '';
-      var result = new String(value);
-      result.ecoSafe = true;
-      return result;
-    }
-  };
-  if (!__escape) {
-    __escape = __obj.escape = function(value) {
-      return ('' + value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    };
-  }
-  (function() {
-    (function() {
-    
-    
-    }).call(this);
-    
-  }).call(__obj);
-  __obj.safe = __objSafe, __obj.escape = __escape;
-  return __out.join('');
-}}, "data/views/pages/landing": function(exports, require, module) {module.exports = function(__obj) {
-  if (!__obj) __obj = {};
-  var __out = [], __capture = function(callback) {
-    var out = __out, result;
-    __out = [];
-    callback.call(this);
-    result = __out.join('');
-    __out = out;
-    return __safe(result);
-  }, __sanitize = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else if (typeof value !== 'undefined' && value != null) {
-      return __escape(value);
-    } else {
-      return '';
-    }
-  }, __safe, __objSafe = __obj.safe, __escape = __obj.escape;
-  __safe = __obj.safe = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else {
-      if (!(typeof value !== 'undefined' && value != null)) value = '';
-      var result = new String(value);
-      result.ecoSafe = true;
-      return result;
-    }
-  };
-  if (!__escape) {
-    __escape = __obj.escape = function(value) {
-      return ('' + value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    };
-  }
-  (function() {
-    (function() {
-      __out.push('<section id="landing wrapper" ng-controller="Landing">\n<nav class="left">\n\t<h1 ng-click="runtime.set(\'app-state\', 1)" ');
-    
-      __out.push(__sanitize(_T("Launch Application")));
-    
-      __out.push('></h1>\n</nav>\n<aside id="landingaside">\n\t<h1 ng-click="runtime.set(\'landing-state\', 1)" ');
-    
-      __out.push(__sanitize(_T("Read More")));
-    
-      __out.push('></h1>\n\t<img src="/icon.ico" alt="" ng-click="runtime.set(\'landing-state\', 0)">\n\t<div class="content" ng-click="runtime.set(\'landing-state\', 0)">');
-    
-      __out.push(DepMan.render(["pages", "landing-content"]));
-    
-      __out.push('</div>\n</aside>\n<nav class="right">\n\t<ul>\n\t\t<li ');
-    
-      __out.push(__sanitize(_T("Install application in Chrome")));
-    
-      __out.push(' id="chrome"></li>\n\t\t<li ');
-    
-      __out.push(__sanitize(_T("Install application in Firefox")));
-    
-      __out.push(' id="firefox"></li>\n\t\t<li ');
-    
-      __out.push(__sanitize(_T("Install application in Windows 8")));
-    
-      __out.push(' id="windows"></li>\n\t\t<li ');
-    
-      __out.push(__sanitize(_T("Install application in Opera New")));
-    
-      __out.push(' id="opera"></li>\n\t</ul>\n</nav>\n</section>\n');
-    
-    }).call(this);
-    
-  }).call(__obj);
-  __obj.safe = __objSafe, __obj.escape = __escape;
-  return __out.join('');
-}}, "data/views/sidebar/index": function(exports, require, module) {module.exports = function(__obj) {
-  if (!__obj) __obj = {};
-  var __out = [], __capture = function(callback) {
-    var out = __out, result;
-    __out = [];
-    callback.call(this);
-    result = __out.join('');
-    __out = out;
-    return __safe(result);
-  }, __sanitize = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else if (typeof value !== 'undefined' && value != null) {
-      return __escape(value);
-    } else {
-      return '';
-    }
-  }, __safe, __objSafe = __obj.safe, __escape = __obj.escape;
-  __safe = __obj.safe = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else {
-      if (!(typeof value !== 'undefined' && value != null)) value = '';
-      var result = new String(value);
-      result.ecoSafe = true;
-      return result;
-    }
-  };
-  if (!__escape) {
-    __escape = __obj.escape = function(value) {
-      return ('' + value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    };
-  }
-  (function() {
-    (function() {
-      var index, tab, _i, _len, _ref;
-    
-      __out.push('<section ng-controller="Sidebar" class="{{STATES[runtime.props[\'sidebar-state\']]}}">\n\t<nav>\n\t\t<li ng-repeat="tab in TABS" ng-click="runtime.set(\'sidebar-tab\', Tabs[tab])" ng-class="{true: \'active\'}[runtime.props[\'sidebar-tab\'] == $index]"><i class="{{ICONS[$index]}}"></i></li>\n\t</nav>\n\t<section>\n\t\t');
-    
-      _ref = this.TABS;
-      for (index = _i = 0, _len = _ref.length; _i < _len; index = ++_i) {
-        tab = _ref[index];
-        __out.push('\n\t\t<article ng-class="{true: \'active\'}[runtime.props[\'sidebar-tab\'] == ');
-        __out.push(__sanitize(index));
-        __out.push(']">');
-        __out.push(DepMan.render(['sidebar', 'tabs', tab]));
-        __out.push('</article>\n\t\t');
-      }
-    
-      __out.push('\n\t</section>\n\t<aside ng-click="toggleState()"><i ng-class="{');
-    
-      __out.push(__sanitize(this.States.open));
-    
-      __out.push(':\' icon-eye-open\', ');
-    
-      __out.push(__sanitize(this.States.closed));
-    
-      __out.push(': \'icon-eye-close\'}[runtime.props[\'sidebar-state\']]"></i></aside>\n</section>\n');
-    
-    }).call(this);
-    
-  }).call(__obj);
-  __obj.safe = __objSafe, __obj.escape = __escape;
-  return __out.join('');
-}}, "data/views/sidebar/tabs/experimental": function(exports, require, module) {module.exports = function(__obj) {
-  if (!__obj) __obj = {};
-  var __out = [], __capture = function(callback) {
-    var out = __out, result;
-    __out = [];
-    callback.call(this);
-    result = __out.join('');
-    __out = out;
-    return __safe(result);
-  }, __sanitize = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else if (typeof value !== 'undefined' && value != null) {
-      return __escape(value);
-    } else {
-      return '';
-    }
-  }, __safe, __objSafe = __obj.safe, __escape = __obj.escape;
-  __safe = __obj.safe = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else {
-      if (!(typeof value !== 'undefined' && value != null)) value = '';
-      var result = new String(value);
-      result.ecoSafe = true;
-      return result;
-    }
-  };
-  if (!__escape) {
-    __escape = __obj.escape = function(value) {
-      return ('' + value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    };
-  }
-  (function() {
-    (function() {
-      __out.push('<h1 ');
-    
-      __out.push(__sanitize(_T("Experimental Features")));
-    
-      __out.push('></h1>\n<ul>\n\t<li onclick="Toast(\'Example\', \'With Content\')"><p ');
-    
-      __out.push(__sanitize(_T("Activate a Toast")));
-    
-      __out.push('></p></li>\n\t<li onclick="Notification.toastNormal(\'Example\', [ \'With Content\' ])"><p ');
-    
-      __out.push(__sanitize(_T("Activate a Toast (Modal Override)")));
-    
-      __out.push('></p></li>\n\t<li onclick="Modal.show({title: \'Some Title\', content: \'Some Example Content\'})"><p ');
-    
-      __out.push(__sanitize(_T("Open a modal window")));
-    
-      __out.push('></p></li>\n\t<li onclick="Loading.start(); Loading.progress(\'I will turn off in 5 seconds!\'); setTimeout(Loading.end, 5000)"><p ');
-    
-      __out.push(__sanitize(_T("Open the Loading Screen")));
-    
-      __out.push('></p></li>\n</ul>\n');
-    
-    }).call(this);
-    
-  }).call(__obj);
-  __obj.safe = __objSafe, __obj.escape = __escape;
-  return __out.join('');
-}}, "data/views/sidebar/tabs/general": function(exports, require, module) {module.exports = function(__obj) {
-  if (!__obj) __obj = {};
-  var __out = [], __capture = function(callback) {
-    var out = __out, result;
-    __out = [];
-    callback.call(this);
-    result = __out.join('');
-    __out = out;
-    return __safe(result);
-  }, __sanitize = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else if (typeof value !== 'undefined' && value != null) {
-      return __escape(value);
-    } else {
-      return '';
-    }
-  }, __safe, __objSafe = __obj.safe, __escape = __obj.escape;
-  __safe = __obj.safe = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else {
-      if (!(typeof value !== 'undefined' && value != null)) value = '';
-      var result = new String(value);
-      result.ecoSafe = true;
-      return result;
-    }
-  };
-  if (!__escape) {
-    __escape = __obj.escape = function(value) {
-      return ('' + value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    };
-  }
-  (function() {
-    (function() {
-      __out.push('<h1 ');
-    
-      __out.push(__sanitize(_T("General Application Settings")));
-    
-      __out.push('></h1>\n<ul>\n\t<li ng-click="runtime.set(\'app-state\', 0)"><p ');
-    
-      __out.push(__sanitize(_T("Activate the landing page")));
-    
-      __out.push('></p></li>\n\t<li ng-click="runtime.set(\'app-state\', 2)"><p ');
-    
-      __out.push(__sanitize(_T("Activate the help page")));
-    
-      __out.push('></p></li>\n\t<li>\n\t\t<label for="languageselect" ');
-    
-      __out.push(__sanitize(_T("Select your language of choice")));
-    
-      __out.push('></label>\n\t\t<select ng-change="runtime.set(\'language\', language)" ng-model=\'language\' id="languageselect">\n\t\t\t<option value="en-US" ');
-    
-      __out.push(__sanitize(_T("English")));
-    
-      __out.push('></option>\n\t\t\t<option value="ro-RO" ');
-    
-      __out.push(__sanitize(_T("Romanian")));
-    
-      __out.push('></option>\n\t\t</select>\n\t</li>\n</ul>\n');
-    
-    }).call(this);
-    
-  }).call(__obj);
-  __obj.safe = __objSafe, __obj.escape = __escape;
-  return __out.join('');
-}}, "data/views/sidebar/tabs/list": function(exports, require, module) {module.exports = function(__obj) {
-  if (!__obj) __obj = {};
-  var __out = [], __capture = function(callback) {
-    var out = __out, result;
-    __out = [];
-    callback.call(this);
-    result = __out.join('');
-    __out = out;
-    return __safe(result);
-  }, __sanitize = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else if (typeof value !== 'undefined' && value != null) {
-      return __escape(value);
-    } else {
-      return '';
-    }
-  }, __safe, __objSafe = __obj.safe, __escape = __obj.escape;
-  __safe = __obj.safe = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else {
-      if (!(typeof value !== 'undefined' && value != null)) value = '';
-      var result = new String(value);
-      result.ecoSafe = true;
-      return result;
-    }
-  };
-  if (!__escape) {
-    __escape = __obj.escape = function(value) {
-      return ('' + value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    };
-  }
-  (function() {
-    (function() {
-      __out.push('<h1 ');
-    
-      __out.push(__sanitize(_T("Document List")));
-    
-      __out.push('></h1>\n');
-    
-    }).call(this);
-    
-  }).call(__obj);
-  __obj.safe = __objSafe, __obj.escape = __escape;
-  return __out.join('');
-}}, "data/views/sidebar/tabs/server": function(exports, require, module) {module.exports = function(__obj) {
-  if (!__obj) __obj = {};
-  var __out = [], __capture = function(callback) {
-    var out = __out, result;
-    __out = [];
-    callback.call(this);
-    result = __out.join('');
-    __out = out;
-    return __safe(result);
-  }, __sanitize = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else if (typeof value !== 'undefined' && value != null) {
-      return __escape(value);
-    } else {
-      return '';
-    }
-  }, __safe, __objSafe = __obj.safe, __escape = __obj.escape;
-  __safe = __obj.safe = function(value) {
-    if (value && value.ecoSafe) {
-      return value;
-    } else {
-      if (!(typeof value !== 'undefined' && value != null)) value = '';
-      var result = new String(value);
-      result.ecoSafe = true;
-      return result;
-    }
-  };
-  if (!__escape) {
-    __escape = __obj.escape = function(value) {
-      return ('' + value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    };
-  }
-  (function() {
-    (function() {
-      __out.push('<h1 ');
-    
-      __out.push(__sanitize(_T("Connection Manager")));
-    
-      __out.push('></h1>\n<ul>\n\t<li ');
-    
-      __out.push(__sanitize(_T("Reconnect")));
-    
-      __out.push(' ng-click="Client.reconnect()"></li>\n</ul>\n<img id="client-qrcode" src="" alt="" class="qrcode" ng-click=\'verifyAndConnect()\' />\n<ul>\n\t<li><label for="self-client-id" ');
-    
-      __out.push(__sanitize(_T("Your Client ID")));
-    
-      __out.push('></label><input type="text" ng-model="Client.id" disabled id="self-client-id" /></li>\n\t<li><label for="remote-client-id" ');
-    
-      __out.push(__sanitize(_T("Client ID to connect to")));
-    
-      __out.push('></label><input type="text"  id="remote-client-id" ng-model="clientid"/></li>\n</ul>\n');
+      __out.push('<input type="password" id="unlockpassword">\n<input type="button" value="Submit!" id="unlockbutton">');
     
     }).call(this);
     
@@ -28898,155 +29245,16 @@ return window.JSONImport['ro-RO'] = module.exports = item;}, "data/stylesheets/f
   __obj.safe = __objSafe, __obj.escape = __escape;
   return __out.join('');
 }}});
-window.isDev = true;(function() {
-  var Client, ClientErrorReporter, _ref,
-    __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
-    __hasProp = {}.hasOwnProperty,
-    __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
-    __slice = [].slice;
+window.isDev = true;
 
-  Client = (function(_super) {
-    __extends(Client, _super);
-
-    function Client() {
-      this.connect = __bind(this.connect, this);
-      this.dataReceived = __bind(this.dataReceived, this);
-      this.loadEvents = __bind(this.loadEvents, this);
-      this.log = __bind(this.log, this);
-      var handle, script,
-        _this = this;
-      this.online = false;
-      script = document.createElement("script");
-      script.src = "/socket.io/socket.io.js";
-      window.Client = this;
-      handle = function() {
-        _this.socket = io.connect("" + window.location.protocol + "//" + window.location.host);
-        return _this.socket.on("auth", function(id) {
-          var ev, handler, me, _ref;
-          _this.id = id;
-          _this.online = true;
-          console.log("Connected! ID: " + _this.id);
-          me = _this;
-          _ref = _this._baseEvents;
-          for (ev in _ref) {
-            handler = _ref[ev];
-            _this.socket.on(ev, function() {
-              var args;
-              args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-              return handler.apply(me, args);
-            });
-          }
-          _this.socket.on("data", _this.dataReceived);
-          _this.loadEvents();
-          if (_this.init != null) {
-            return _this.init();
-          }
-        });
-      };
-      if ((typeof require !== "undefined" && require !== null) && (require("socket.io") != null)) {
-        window.io = require("socket.io");
-        handle();
-      } else {
-        script.onload = handle;
-        document.head.appendChild(script);
-      }
-    }
-
-    Client.prototype._baseEvents = {
-      "error": function(e) {
-        throw ClientErrorReporter.generate(e);
-      },
-      "connectedTo": function(id) {
-        console.log("Connected to " + id);
-        if (this.connected != null) {
-          return this.connected(id);
-        }
-      }
-    };
-
-    Client.prototype.events = null;
-
-    Client.prototype.log = function() {
-      var args, _ref;
-      args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-      args.unshift("log");
-      return (_ref = this.socket) != null ? _ref.emit.apply(this.socket, args) : void 0;
-    };
-
-    Client.prototype.loadEvents = function() {
-      var event, handler, _fn, _ref,
-        _this = this;
-      _ref = this.events;
-      _fn = function(event, handler) {
-        return _this.subscribe(event, function() {
-          var args, isntfromserver, test, _ref1;
-          args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-          test = args.pop();
-          isntfromserver = test !== "fromserver";
-          if (isntfromserver) {
-            args.push(test);
-          }
-          handler.apply(_this, args);
-          if (isntfromserver) {
-            args.unshift(event);
-            args.unshift("data");
-            return (_ref1 = _this.socket) != null ? _ref1.emit.apply(_this.socket, args) : void 0;
-          }
-        });
-      };
-      for (event in _ref) {
-        handler = _ref[event];
-        _fn(event, handler);
-      }
-      return this.events = null;
-    };
-
-    Client.prototype.dataReceived = function() {
-      var data, event;
-      event = arguments[0], data = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
-      data.unshift(event);
-      return this.publish.apply(this, data);
-    };
-
-    Client.prototype.connect = function(id) {
-      return this.socket.emit("connectTo", id);
-    };
-
-    Client.include(IS.Modules.Observer);
-
-    return Client;
-
-  })(IS.Object);
-
-  ClientErrorReporter = (function(_super) {
-    __extends(ClientErrorReporter, _super);
-
-    function ClientErrorReporter() {
-      _ref = ClientErrorReporter.__super__.constructor.apply(this, arguments);
-      return _ref;
-    }
-
-    ClientErrorReporter.errors = {
-      "ConnectionError": ["The client requested does not exist"]
-    };
-
-    ClientErrorReporter.extend(IS.ErrorReporter);
-
-    return ClientErrorReporter;
-
-  })(IS.Object);
-
-  window.BaseClient = Client;
-
-}).call(this);
-
-
-window.addEventListener('load', (function(){
+init_func = function(){
 	window.getStylesheets = function() {
 		element = document.createElement('style');
-		element.innerHTML = "";
+		element.innerHTML = "body #modal-window {  position: fixed;  left: 0;  right: 0;  top: 0;  bottom: 0;  -webkit-transition: all 1s ease-in-out;  -moz-transition: all 1s ease-in-out;  -o-transition: all 1s ease-in-out;  -ms-transition: all 1s ease-in-out;  transition: all 1s ease-in-out;  background: rgba(0,0,0,0);  z-index: -1;}body #modal-window section {  position: absolute;  left: 50%;  top: 50%;  right: 50%;  bottom: 50%;  -webkit-border-radius: 2px;  border-radius: 2px;  width: 480px;  height: 290px;  margin: -150px 0 0 -250px;  -webkit-box-shadow: -1px 1px 5px rgba(0,0,0,0.4);  box-shadow: -1px 1px 5px rgba(0,0,0,0.4);  background: #fff;  -webkit-transform: scale(0.2);  -moz-transform: scale(0.2);  -o-transform: scale(0.2);  -ms-transform: scale(0.2);  transform: scale(0.2);  -webkit-transition: all 1s ease-in-out;  -moz-transition: all 1s ease-in-out;  -o-transition: all 1s ease-in-out;  -ms-transition: all 1s ease-in-out;  transition: all 1s ease-in-out;  opacity: 0;  filter: alpha(opacity=0);  -ms-filter: 'progid:DXImageTransform.Microsoft.Alpha(Opacity=0)';}body #modal-window section > * {  position: absolute;  left: 0;  right: 0;}body #modal-window section header {  top: 0;  height: 55px;  line-height: 55px;  overflow: hiden;  font-size: 18pt;  font-weight: 100;  padding-left: 10px;}body #modal-window section nav {  top: 10px;  right: 10px;}body #modal-window section nav li {  list-style: none;  margin: 5px;  display: inline-block;  float: right;  font-size: 12pt;}body #modal-window section article {  overflow: auto;  top: 70px;  bottom: 0;}body #modal-window.fullscreen section {  width: 100%;  height: 100%;  margin: 0;  left: 0;  top: 0;  bottom: 0;  right: 0;}body #modal-window.fullscreen,body #modal-window.normal {  z-index: 999999;}body #modal-window.fullscreen article,body #modal-window.normal article {  padding: 0 25px;}body.modal-active {  -webkit-border-radius: 2px;  border-radius: 2px;  opacity: 0.8;  filter: alpha(opacity=80);  -ms-filter: 'progid:DXImageTransform.Microsoft.Alpha(Opacity=80)';  z-index: -1;}body.modal-active #modal-container,body.modal-active #modal-container * {  visibility: visible;}body.modal-active #modal-container #modal-window {  background: rgba(0,0,0,0.2);  z-index: 1;}body.modal-active #modal-container #modal-window section {  -webkit-transform: scale(1);  -moz-transform: scale(1);  -o-transform: scale(1);  -ms-transform: scale(1);  transform: scale(1);  opacity: 1;  -ms-filter: none;  filter: none;}body.modal-active > *:not(#modal-container) {  z-index: -1 !important;}@media (max-width:320px) {  body #modal-window section {    width: 300px;    margin-left: -150px;  }}body #loadingscreen {  position: absolute;  left: 0;  right: 0;  top: 0;  bottom: 0;  opacity: 0;  filter: alpha(opacity=0);  -ms-filter: 'progid:DXImageTransform.Microsoft.Alpha(Opacity=0)';  z-index: -1;  -webkit-transition: all 1s ease-in-out;  -moz-transition: all 1s ease-in-out;  -o-transition: all 1s ease-in-out;  -ms-transition: all 1s ease-in-out;  transition: all 1s ease-in-out;  overflow: hidden;}body #loadingscreen * {  -webkit-transition: all 0.5s ease-in-out;  -moz-transition: all 0.5s ease-in-out;  -o-transition: all 0.5s ease-in-out;  -ms-transition: all 0.5s ease-in-out;  transition: all 0.5s ease-in-out;}body #loadingscreen > section {  width: 100%;  height: 100%;  background: #000;  opacity: 0.8;  filter: alpha(opacity=80);  -ms-filter: 'progid:DXImageTransform.Microsoft.Alpha(Opacity=80)';  trnasition: all 1s ease-in-out;}body #loadingscreen > aside {  -webkit-transition: all 0.5s ease-in-out;  -moz-transition: all 0.5s ease-in-out;  -o-transition: all 0.5s ease-in-out;  -ms-transition: all 0.5s ease-in-out;  transition: all 0.5s ease-in-out;  position: absolute;  left: -200%;  right: 200%;  top: 0;  bottom: 0;  background: #fff;  -webkit-box-shadow: 0 0 5px rgba(0,0,0,0.2);  box-shadow: 0 0 5px rgba(0,0,0,0.2);}body #loadingscreen > aside:last-of-type {  border: solid 1px rgba(0,0,0,0.05);  left: 200%;  right: -200%;}body #loadingscreen.active > aside {  left: 0;  right: 0;}body #loadingscreen > article {  height: 200px;  width: 350px;  background: #fff;  -webkit-border-radius: 4px;  border-radius: 4px;  -webkit-box-shadow: 0 5px 5px rgba(0,0,0,0.2);  box-shadow: 0 5px 5px rgba(0,0,0,0.2);  border: solid 1px rgba(0,0,0,0.2);  opacity: 0;  filter: alpha(opacity=0);  -ms-filter: 'progid:DXImageTransform.Microsoft.Alpha(Opacity=0)';  position: absolute;  z-index: 9;  left: 50%;  top: 50%;  margin: -100px 0 0 -175px;  text-align: center;  -webkit-transform: scale(10);  -moz-transform: scale(10);  -o-transform: scale(10);  -ms-transform: scale(10);  transform: scale(10);  font-family: Roboto;  font-size: 18pt;  font-weight: 100;  text-align: center;  line-height: 200px;  vertical-align: middle;}body #loadingscreen > article > span,body #loadingscreen > article p,body #loadingscreen > article div {  display: inline-block;  vertical-align: middle;}body #loadingscreen > article > span {  width: 30px;  height: 30px;  -webkit-border-radius: 100%;  border-radius: 100%;  border: solid 1px rgba(0,0,0,0.3);  margin-top: -6px;}body #loadingscreen > article div {  width: 0;  overflow: hidden;}body #loadingscreen > article div p {  float: left;}body #loadingscreen > article div:last-of-type p {  float: right;}body #loadingscreen > article > p {  line-height: 1em;  position: absolute;  left: 10%;  right: 10%;  top: 65%;  height: 50px;  font-size: 14pt;  overflow: hidden;}body #loadingscreen > article:hover > span {  border-color: rgba(0,0,0,0.8);}body #loadingscreen > article:hover div {  width: 80px;  margin: 0;  padding: 0;  margin-left: 11px;}body #loadingscreen > article:hover div:last-of-type {  width: 11px;  margin: 0;  margin-right: 80px;}body #loadingscreen.active > article {  opacity: 1;  -ms-filter: none;  filter: none;  -webkit-transform: scale(1);  -moz-transform: scale(1);  -o-transform: scale(1);  -ms-transform: scale(1);  transform: scale(1);}body #loadingscreen.active {  z-index: 99;  opacity: 1;  -ms-filter: none;  filter: none;}body #unlockedplaceholder {  display: block;  position: fixed;  bottom: 0;  left: 0;  width: 20px;  height: 20px;  margin: 0;  padding: 0;  background: #fff;  border: solid 1px #aaa;  border-top-right-radius: 4px;  -webkit-box-shadow: 0 0 5px rgba(0,0,0,0.2);  box-shadow: 0 0 5px rgba(0,0,0,0.2);  text-align: center;}body #unlockedplaceholder i {  font-size: 15px;  line-height: 20px;}body #itmenuwindow {  position: fixed;  left: 0;  right: 0;  top: 0;  height: 45px;  background: -webkit-gradient(linear, left top, left bottom, color-stop(0, rgba(255,255,255,0.8)), color-stop(1, #fff));  background: -webkit-linear-gradient(top, rgba(255,255,255,0.8) 0%, #fff 100%);  background: -moz-linear-gradient(top, rgba(255,255,255,0.8) 0%, #fff 100%);  background: -o-linear-gradient(top, rgba(255,255,255,0.8) 0%, #fff 100%);  background: -ms-linear-gradient(top, rgba(255,255,255,0.8) 0%, #fff 100%);  background: linear-gradient(top, rgba(255,255,255,0.8) 0%, #fff 100%);  -webkit-box-shadow: 0 0 5px rgba(0,0,0,0.2);  box-shadow: 0 0 5px rgba(0,0,0,0.2);  border-bottom: solid 1px #aaa;  z-index: 9999999999;}body #itmenuwindow li {  height: 45px;  float: left;  padding: 0 10px;  line-height: 45px;  font-family: Roboto, 'Lucida Grande', Arial, sans-serif;  font-weight: 100;  list-style: none;  border-right: solid 1px #ccc;  color: #444;}body #heatmap-canvas {  position: absolute;  z-index: 999999999;  top: 0;  bottom: 0;  left: 0;  right: 0;  background: rgba(255,255,255,0.4);}";
 		element.id = "compiled_styles";
 		return element;
 	}
 	new (require("Application"))(window.getStylesheets);
-}))
+}
+if (document.body) init_func();
+else window.addEventListener('load', init_func);

@@ -1,4 +1,5 @@
 require("coffee-script");
+require("LiveScript");
 var parser = require("cliparser"),
 	args   = parser.parse(process.argv, {
 		"-v": "--version",
