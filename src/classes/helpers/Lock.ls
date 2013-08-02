@@ -14,6 +14,9 @@ class Lock extends IS.Object
 				div = document.createElement "div"
 				div.id = "unlockedplaceholder"
 				div.innerHTML = "<i class='icon-eye-open'></i>"
+				$ div .click ~> 
+					item = document.get-element-by-id 'itmenuwindow'
+					if item then $ item .toggleClass 'inactive'
 				document.body.appendChild div
 		else @lock!
 	lock: ~> 
